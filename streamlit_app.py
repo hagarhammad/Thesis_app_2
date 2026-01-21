@@ -16,7 +16,7 @@ def load_data():
 df_raw = load_data()
 
 # --- SIDEBAR: DESIGN FILTERS (Original Radio Style) ---
-st.sidebar.header("- Design Choices")
+st.sidebar.header("Design Choices")
 def apply_filter(df, col, label):
     choice = st.sidebar.radio(f"{label}", ["Mandatory", "Flexible", "Excluded"], horizontal=True, key=f"filter_{col}")
     if choice == "Mandatory": 
@@ -35,7 +35,7 @@ df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Ste
 # --- MAIN UI ---
 st.title("Architectural Cases Optimization")
 
-st.subheader("- Design Priorities")
+st.subheader("Design Priorities")
 # Split-view priority slider
 energy_val = st.select_slider(
     "Balance: Energy Importance (Left) vs Daylight (Right)", 
