@@ -7,26 +7,21 @@ from scipy.stats import ks_2samp
 # 1. SET PAGE CONFIG
 st.set_page_config(layout="wide", page_title="Architectural Case Finder")
 
-# 2. FIXED SIDEBAR WIDTH (CSS Injection)
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"] {
-        min-width: 350px;
-        max-width: 350px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# 3. LOAD DATA
+# 2. LOAD DATA
 @st.cache_data
 def load_data():
-    df = pd.read_csv('Category_02F.csv')
-    return df
+    return pd.read_csv('Category_02F.csv')
 
 df_raw = load_data()
+
+# --- 3. GLOBAL COLUMN DEFINITIONS (Move them here!) ---
+col_id = 'Cases_ID' # Or whatever your ID column is named
+col_heat = 'Winter_Average_Radation_kWh/m2'
+col_over = 'Summer_Average_Radation_kWh/m2'
+col_sDA = 'sDA'
+col_ASE = 'ASE'
+params = ['Vertical_Steps_Section', 'Horizontal_Steps_Plan', 'Balcony_Steps', 'PV_Canopy_Steps', 'Vertical_Louvre_Steps']
+
 
 # --- SIDEBAR: DESIGN FILTERS ---
 st.sidebar.header("Design Choices")
