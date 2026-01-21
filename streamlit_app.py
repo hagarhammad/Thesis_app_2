@@ -174,14 +174,8 @@ if 'top_10' in st.session_state:
     st.divider()
     st.subheader("📈 Performance Improvement from Base Case")
     
-    # Identify the Base Case (where all design parameters are 0)
-    base_case_search = full_df[
-        (full_df['Vertical_Steps_Section'] == 0) & 
-        (full_df['Horizontal_Steps_Plan'] == 0) & 
-        (full_df['Balcony_Steps'] == 0) & 
-        (full_df['PV_Canopy_Steps'] == 0) & 
-        (full_df['Vertical_Louvre_Steps'] == 0)
-    ]
+    # FIX: Look in the RAW data and use the Name 'Base' instead of just zeros
+    base_case_search = df_raw[df_raw[col_id].astype(str).str.contains('Base', case=False, na=False)]
     
     if not base_case_search.empty:
         base_case = base_case_search.iloc[0]
