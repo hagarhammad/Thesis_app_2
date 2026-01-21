@@ -1,10 +1,23 @@
-import streamlit as st
+foimport streamlit as st
 import pandas as pd
 import numpy as np
 import ui_components  # Ensure ui_components.py is in your GitHub
 from scipy.stats import ks_2samp
 
 st.set_page_config(layout="wide", page_title="Architectural Case Finder")
+
+st.markdown(
+    """
+    <style>
+    /* This target the sidebar width */
+    [data-testid="stSidebar"] {
+        min-width: 350px;
+        max-width: 350px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # 1. LOAD DATA
 @st.cache_data
@@ -16,7 +29,7 @@ def load_data():
 df_raw = load_data()
 
 # --- SIDEBAR: DESIGN FILTERS (Original Radio Style) ---
-st.sidebar.header("🛠️ Design Choices")
+st.sidebar.header("- Design Choices")
 def apply_filter(df, col, label):
     choice = st.sidebar.radio(f"{label}", ["Mandatory", "Flexible", "Excluded"], horizontal=True, key=f"filter_{col}")
     if choice == "Mandatory": 
@@ -33,9 +46,9 @@ df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Step
 df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
 
 # --- MAIN UI ---
-st.title("🏙️ Architectural Performance Optimizer")
+st.title("Architectural Cases Optimization")
 
-st.subheader("⚖️ Design Priorities")
+st.subheader("- Design Priorities")
 # Split-view priority slider
 energy_val = st.select_slider(
     "Balance: Energy Importance (Left) vs Daylight (Right)", 
