@@ -160,7 +160,7 @@ if 'top_10' in st.session_state:
         # Display Global_ID and Parameters for the Selected Case
         schedule_cols = [col_global] + params
         st.dataframe(top_10[schedule_cols], hide_index=True)
-        st.info(f"Viewing: Case {selected_id} (Global: {case_data[col_global]})")
+        st.info(f"Viewing: Case {case_data[col_global]} (Typology: {selected_id})")
 
     # ==========================================
     # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
