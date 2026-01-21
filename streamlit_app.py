@@ -148,22 +148,22 @@ if 'top_10' in st.session_state:
     
     cols = st.columns(len(params))
     for p in params:
-    mean_all = full_df[p].mean()
-    mean_top = top_10[p].mean()
-    var_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
+        mean_all = full_df[p].mean()
+        mean_top = top_10[p].mean()
+        var_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
     
-    # Directional Logic
-    direction = "increase" if mean_top > mean_all else "decrease"
+        # Directional Logic
+        direction = "increase" if mean_top > mean_all else "decrease"
     
-    # Importance Logic (Sensitivity)
-    if var_ratio < 0.2:
-        importance = "CORE CONSTRAINT: This value is strictly required for high performance."
-    elif var_ratio < 0.6:
-        importance = "RECOMMENDED: This value is preferred but has some room for adjustment."
-    else:
-        importance = "FLEXIBLE: You can modify this based on aesthetic preference without losing performance."
+        # Importance Logic (Sensitivity)
+        if var_ratio < 0.2:
+            importance = "CORE CONSTRAINT: This value is strictly required for high performance."
+        elif var_ratio < 0.6:
+            importance = "RECOMMENDED: This value is preferred but has some room for adjustment."
+        else:
+            importance = "FLEXIBLE: You can modify this based on aesthetic preference without losing performance."
 
-    # Final Output
-    st.markdown(f"### {p.replace('_',' ')}")
-    st.write(f"👉 **Direction:** To reach the Top 10, you should **{direction}** this parameter.")
-    st.write(f"📐 **Architect's Freedom:** {importance}")
+        # Final Output
+        st.markdown(f"### {p.replace('_',' ')}")
+        st.write(f"👉 **Direction:** To reach the Top 10, you should **{direction}** this parameter.")
+        st.write(f"📐 **Architect's Freedom:** {importance}")
