@@ -223,24 +223,36 @@ if 'top_10' in st.session_state:
         st.success("✅ **Balanced Performance:** This specific geometry manages all conflicts effectively.")
     
     # ==========================================
-    # 10. EXECUTIVE DESIGN SUMMARY
+    # 10. EXECUTIVE DESIGN SUMMARY (Architectural Logic)
     # ==========================================
     st.divider()
-    st.subheader("💬 Executive Design Summary")
+    st.subheader("💬 Design Freedom & Constraints")
+    st.info("This summary identifies where you must follow the data and where you can use your artistic intuition.")
     
-    for p in params:
-        if full_df[p].max() == 0 and full_df[p].min() == 0: continue
-            
-        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
+    active_params = [p for p in params if full_df[p].max() != 0 or full_df[p].min() != 0]
+    
+    for p in active_params:
+        # We look at how much the Top 10 "agree" on this parameter
         if full_df[p].var() > 0:
             v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-            direction = "higher values" if mean_top > mean_all else "lower values"
+            mean_top = top_10[p].mean()
+            mean_all = full_df[p].mean()
             
-            if v_ratio < 0.25:
-                role = "a **Fixed Requirement** for this performance level."
-            elif v_ratio < 0.65:
-                role = "a **Critical Priority** with high consistency among winners."
+            direction = "increasing" if mean_top > mean_all else "reducing"
+            
+            # --- ARCHITECTURAL CLASSIFICATION ---
+            if v_ratio < 0.20:
+                # High agreement = Architect has NO freedom here
+                role = "🔴 **STRICT CONSTRAINT**"
+                advice = f"The data is very rigid here. To hit these targets, you **must** focus on {direction} {p.replace('_',' ')}."
+            elif v_ratio < 0.60:
+                # Moderate agreement = Preferred range
+                role = "🟡 **DESIGN PREFERENCE**"
+                advice = f"There is a clear trend toward {direction} this value, but you have some room to negotiate the dimensions."
             else:
-                role = "a **Flexible Feature** (multiple values work well)."
+                # Low agreement = Complete artistic freedom
+                role = "🟢 **ARTISTIC FREEDOM**"
+                advice = f"Performance is stable regardless of this value. You can set {p.replace('_',' ')} based purely on **aesthetic preference**."
             
-            st.write(f"• Top designs prefer **{direction}** for **{p.replace('_',' ')}**. In this scenario, it is {role}")
+            st.markdown(f"**{p.replace('_',' ')}** | {role}")
+            st.write(advice)
