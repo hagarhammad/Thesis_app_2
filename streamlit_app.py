@@ -93,10 +93,20 @@ w_daylight = (daylight_display / 100) * pool
 # 6. CALCULATION ENGINE
 # ==========================================
 if st.button("🚀 Find Best Cases", use_container_width=True):
+    # --- FIXED: Weight Logic must be inside the button block to capture slider changes ---
+    if renew_choice == "Mandatory":
+        w_renew, pool = 0.10, 0.90
+    else:
+        w_renew, pool = 0.0, 1.0
+
+    current_w_energy = (slider_val / 100) * pool
+    current_w_daylight = (daylight_display / 100) * pool
+    
     df = df_filtered.copy()
     if df.empty:
         st.warning("No cases match your filter criteria.")
     else:
+        # A. Score Renewables
         s_area = df['Surface_Area'] if 'Surface_Area' in df.columns else 1.0
         df['Total_Surface'] = df['PercArea_PV_Potential'] + df['PercArea_Active_Solar_Potential']
         
@@ -104,18 +114,27 @@ if st.button("🚀 Find Best Cases", use_container_width=True):
         n_surf_inv = 1 - (s_area - s_area.min()) / (s_area.max() - s_area.min() + 1e-6)
         df['Score_Renewables'] = ((n_act * 0.5) + (n_surf_inv * 0.5)).clip(0, 1)
 
+        # B. Score Thermal
         n_heat = (df[col_heat] - df[col_heat].min()) / (df[col_heat].max() - df[col_heat].min() + 1e-6)
         n_over = 1 - (df[col_over] - df[col_over].min()) / (df[col_over].max() - df[col_over].min() + 1e-6)
         df['Score_Thermal'] = (n_heat * 0.5) + (n_over * 0.5)
 
+        # C. Score Daylight
         n_sda = (df[col_sDA] - df[col_sDA].min()) / (df[col_sDA].max() - df[col_sDA].min() + 1e-6)
         n_ase = 1 - (df[col_ASE] - df[col_ASE].min()) / (df[col_ASE].max() - df[col_ASE].min() + 1e-6)
         df['Score_Daylight'] = (n_sda * 0.5) + (n_ase * 0.5)
 
-        df['Final_Score'] = (df['Score_Renewables'] * w_renew) + (df['Score_Thermal'] * w_energy) + (df['Score_Daylight'] * w_daylight)
+        # D. Apply the Weights (Capturing the current slider position)
+        df['Final_Score'] = (df['Score_Renewables'] * w_renew) + \
+                            (df['Score_Thermal'] * current_w_energy) + \
+                            (df['Score_Daylight'] * current_w_daylight)
 
+        # Sort and Save
         st.session_state['top_10'] = df.sort_values('Final_Score', ascending=False).head(10)
         st.session_state['full_calc_df'] = df
+        
+        # Display feedback for verification
+        st.success(f"Optimized for: Energy ({round(current_w_energy*100)}%) | Daylight ({round(current_w_daylight*100)}%)")
 
 # ==========================================
 # 7. DYNAMIC OUTPUTS
