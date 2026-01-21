@@ -128,7 +128,7 @@ if 'top_10' in st.session_state:
     col_viz, col_table = st.columns([2, 1])
     
     with col_viz:
-        st.subheader("🧊 3D Building Form")
+        st.subheader("3D Building Form")
         selected_id = st.selectbox("Select Case ID to visualize:", top_10[col_id])
         case_data = top_10[top_10[col_id] == selected_id].iloc[0]
         
@@ -158,7 +158,7 @@ if 'top_10' in st.session_state:
     with col_table:
         st.subheader("🏆 Case Schedule")
         # Display Global_ID and Parameters for the Selected Case
-        schedule_cols = [col_global] + params + [col_sDA, col_ASE]
+        schedule_cols = [col_global] + params
         st.dataframe(top_10[schedule_cols], hide_index=True)
         st.info(f"Viewing: Case {selected_id} (Global: {case_data[col_global]})")
 
@@ -166,7 +166,7 @@ if 'top_10' in st.session_state:
     # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
     # ==========================================
     st.divider()
-    st.subheader("🧐 Strategic Conflict Analysis")
+    st.subheader("Strategic Conflict Analysis")
     
     # Conflict/Fix logic remains the same
     correlation_matrix = full_df[params + ['Score_Thermal', 'Score_Daylight']].corr()
@@ -190,7 +190,7 @@ if 'top_10' in st.session_state:
                 st.write("⚖️ Neutral")
 
     st.divider()
-    st.subheader("💬 Executive Design Summary")
+    st.subheader("Executive Design Summary")
     for p in params:
         mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
         v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
