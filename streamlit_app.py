@@ -166,34 +166,58 @@ if 'top_10' in st.session_state:
     # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
     # ==========================================
     st.divider()
-    st.subheader("Strategic Conflict Analysis")
+    st.subheader("🧐 Strategic Conflict Analysis")
     
-    # Conflict/Fix logic remains the same
-    correlation_matrix = full_df[params + ['Score_Thermal', 'Score_Daylight']].corr()
-    ins_cols = st.columns(len(params))
+    # We only analyze parameters that AREN'T excluded by the user
+    active_params = [p for p in params if full_df[p].max() > 0]
+    
+    if active_params:
+        correlation_matrix = full_df[active_params + ['Score_Thermal', 'Score_Daylight']].corr()
+        ins_cols = st.columns(len(active_params))
 
-    for i, p in enumerate(params):
-        with ins_cols[i]:
-            st.markdown(f"#### {p.replace('_',' ')}")
-            c_thermal = correlation_matrix.loc[p, 'Score_Thermal']
-            c_daylight = correlation_matrix.loc[p, 'Score_Daylight']
-            
-            if (c_thermal > 0.15 and c_daylight < -0.15):
-                st.warning("⚠️ High Conflict")
-                st.info(f"💡 **Fix:** Set **Canopy** to 'Required' or decrease **Louver** depth.")
-            elif (c_thermal < -0.15 and c_daylight > 0.15):
-                st.warning("⚠️ High Conflict")
-                st.info(f"💡 **Fix:** Set **Vertical Steps** to 'Required' to increase self-shading.")
-            elif abs(c_thermal) > 0.3 and abs(c_daylight) > 0.3:
-                st.success("🤝 Synergy")
-            else:
-                st.write("⚖️ Neutral")
+        for i, p in enumerate(active_params):
+            with ins_cols[i]:
+                st.markdown(f"#### {p.replace('_',' ')}")
+                c_thermal = correlation_matrix.loc[p, 'Score_Thermal']
+                c_daylight = correlation_matrix.loc[p, 'Score_Daylight']
+                
+                # Conflict Logic
+                if (c_thermal > 0.15 and c_daylight < -0.15) or (c_thermal < -0.15 and c_daylight > 0.15):
+                    st.warning("⚠️ High Conflict")
+                    
+                    # Logic to suggest a fix only if it's not already filtered
+                    if c_thermal < c_daylight: # Needs Thermal help
+                        if st.session_state.get('filter_Vertical_Steps_Section') != "Required":
+                            st.info("💡 **Fix:** Try 'Vertical Steps' to Required for self-shading.")
+                        else:
+                            st.info("💡 **Fix:** Increase 'Canopy' depth to reduce solar gain.")
+                    else: # Needs Daylight help
+                        st.info("💡 **Fix:** Reduce 'Louver' depth or check 'Balcony' overlap.")
+                
+                elif abs(c_thermal) > 0.3 and abs(c_daylight) > 0.3:
+                    st.success("🤝 Synergy")
+                else:
+                    st.write("⚖️ Neutral")
+    else:
+        st.write("Adjust filters to analyze active parameters.")
 
+    # ==========================================
+    # 10. EXECUTIVE SUMMARY (Fixed for Exclusions)
+    # ==========================================
     st.divider()
-    st.subheader("Executive Design Summary")
+    st.subheader("💬 Executive Design Summary")
+    
     for p in params:
+        # Check if user has excluded this parameter
+        if full_df[p].max() == 0:
+            continue # Skip parameters that are excluded (always 0)
+            
         mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
-        v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-        shift = "higher values" if mean_top > mean_all else "lower values"
-        stability = "critical for performance" if v_ratio < 0.6 else "flexible for design"
-        st.write(f"• Top designs prefer **{shift}** for **{p.replace('_',' ')}**. This is **{stability}**.")
+        
+        # Stability check: Only valid if there is variance in the original data
+        if full_df[p].var() > 0:
+            v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
+            shift = "higher values" if mean_top > mean_all else "lower values"
+            stability = "critical for performance" if v_ratio < 0.6 else "flexible for design"
+            
+            st.write(f"• Top designs prefer **{shift}** for **{p.replace('_',' ')}**. This is **{stability}**.")
