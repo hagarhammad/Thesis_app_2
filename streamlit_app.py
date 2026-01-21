@@ -229,14 +229,10 @@ if 'top_10' in st.session_state:
         fixes.append(f"🔥 **Summer Heat:** High radiation. Try **{step_type}** steps (~{best_s_val}m) or increasing *Canopy Depth*.")
 
     if fixes:
-        for f in fixes:
-            # Check if the parameter mentioned in the fix is 'Flexible'
-            is_flexible = any(p.replace('_',' ') in f and "Flexible" in role for p in params)
-            if is_flexible:
-                st.info(f + " *(Note: You have high design freedom here)*")
-            else:
-                st.warning(f + " *(Note: This is a critical performance constraint)*")
-    
+        for f in fixes: st.info(f)
+    else:
+        st.success("✅ **Balanced Performance:** This specific geometry manages all conflicts effectively.")
+        
     # ==========================================
     # 10. EXECUTIVE DESIGN SUMMARY (Architectural Logic)
     # ==========================================
