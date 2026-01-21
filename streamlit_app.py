@@ -10,13 +10,13 @@ st.set_page_config(layout="wide", page_title="Architectural Case Finder")
 @st.cache_data
 def load_data():
     # Make sure this filename matches exactly what you uploaded to GitHub
-    df = pd.read_csv('your_data.csv')
+    df = pd.read_csv('Category_02F.csv')
     return df
 
 df_raw = load_data()
 
 # --- SIDEBAR: DESIGN FILTERS (Original Radio Style) ---
-st.sidebar.header("🛠️ Design Choices")
+st.sidebar.header("Design Choices")
 def apply_filter(df, col, label):
     choice = st.sidebar.radio(f"{label}", ["Available", "Mandatory", "Ignored"], horizontal=True, key=f"filter_{col}")
     if choice == "Mandatory": 
@@ -33,9 +33,9 @@ df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Step
 df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
 
 # --- MAIN UI ---
-st.title("🏙️ Architectural Performance Optimizer")
+st.title("Architectural Performance Optimization")
 
-st.subheader("⚖️ Design Priorities")
+st.subheader("Design Priorities")
 # Split-view priority slider
 energy_val = st.select_slider(
     "Balance: Energy Importance (Left) vs Daylight (Right)", 
@@ -51,7 +51,7 @@ col_m2.metric("☀️ Daylight Weight", f"{daylight_val}%")
 renew_choice = st.radio("Renewable Energy Strategy:", ["Ignored", "Mandatory"], horizontal=True)
 
 # --- CALCULATION ENGINE ---
-if st.button("🚀 Find Top 10 Best Cases", use_container_width=True):
+if st.button("Find Top 10 Best Cases", use_container_width=True):
     # We work on a copy of the filtered data
     df = df_filtered.copy()
     
