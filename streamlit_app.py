@@ -1,107 +1,103 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
+import ui_components  # Your custom 3D drawing script
 from scipy.stats import ks_2samp
 
-st.set_page_config(layout="wide", page_title="Architectural Case Finder")
+# --- 1. SETTINGS & FILTERS (Original Style Kept) ---
+st.set_page_config(layout="wide")
 
-# 1. LOAD DATA
 @st.cache_data
 def load_data():
-    # Make sure this matches your uploaded file name on GitHub
-    df = pd.read_csv('Category_02F.csv') 
-    return df
+    return pd.read_csv('your_data.csv')
 
-df_raw = load_data().copy()
+df_raw = load_data()
 
-# --- CONSTANTS ---
-col_id = 'Cases_ID'
-col_heat = 'Winter_Average_Radation_kWh/m2'
-col_over = 'Summer_Average_Radation_kWh/m2'
-col_sDA = 'sDA'
-col_ASE = 'ASE'
-col_pv = 'PercArea_PV_Potential'
-col_active = 'PercArea_Active_Solar_Potential'
-# Design Params for 3D
-params_3d = ['Vertical_Steps_Section', 'Horizontal_Steps_Plan', 'Balcony_Steps']
-
-# --- SIDEBAR: DESIGN CHOICES ---
-st.sidebar.header("🛠️ Design Filters")
+# The "Original Appearance" Design Filters you liked
+st.sidebar.header("🛠️ Design Choices")
 def apply_filter(df, col, label):
-    choice = st.sidebar.selectbox(f"{label}", ["Available", "Mandatory", "Ignored"])
+    # Keeping the radio style from your first request
+    choice = st.sidebar.radio(f"{label}", ["Available", "Mandatory", "Ignored"], horizontal=True)
     if choice == "Mandatory": return df[df[col] > 0]
-    if choice == "Ignored": return df[df[col] == 0]
+    elif choice == "Ignored": return df[df[col] == 0]
     return df
 
-df_filtered = df_raw.copy()
-df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
+df_filtered = apply_filter(df_raw, 'Vertical_Louvre_Steps', "Louvers")
 df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
 df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
 df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Steps")
 df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
 
-# --- MAIN: PRIORITY VISUALIZER ---
-st.title("🏛️ Performance Case Finder")
+# --- 2. PRIORITY SECTION ---
+st.title("🏛️ Architectural Case Optimizer")
 
 st.subheader("⚖️ Priority Balance")
-energy_val = st.select_slider(
-    "Drag to balance Energy vs Daylight",
-    options=list(range(0, 101)),
-    value=50
-)
+energy_val = st.select_slider("Energy (Winter/Summer) vs Daylight (sDA/ASE)", options=list(range(0, 101)), value=50)
 daylight_val = 100 - energy_val
 
-# Visual Feedback for the user
 c1, c2 = st.columns(2)
-c1.metric("⚡ Energy Importance", f"{energy_val}%")
-c2.metric("☀️ Daylight Importance", f"{daylight_val}%")
+c1.metric("⚡ Energy Weight", f"{energy_val}%")
+c2.metric("☀️ Daylight Weight", f"{daylight_val}%")
 
-renew_choice = st.segmented_control("Renewable Energy Strategy:", ["Ignored", "Mandatory"], default="Ignored")
+renew_choice = st.radio("Renewable Energy Importance:", ["Ignored", "Mandatory"], horizontal=True)
 
+# --- 3. THE CALCULATION ENGINE ---
 if st.button("🚀 Find Top 10 Best Cases", use_container_width=True):
     df = df_filtered.copy()
     
-    # CALCULATIONS
-    # Renewables
-    df['Total_Surface'] = df[col_pv] + df[col_active]
-    norm_Active = (df['Total_Surface'] - df['Total_Surface'].min()) / (df['Total_Surface'].max() - df['Total_Surface'].min())
-    imbalance_mask = (df[col_pv] < 10.0) | (df[col_active] < 10.0)
-    norm_Active[imbalance_mask] *= 0.5
-    norm_Surf_inv = 1 - (df['Surface_Area'] - df['Surface_Area'].min()) / (df['Surface_Area'].max() - df['Surface_Area'].min())
-    df['Score_Renewables'] = ((norm_Active * 0.5) + (norm_Surf_inv * 0.5)).clip(0, 1)
+    # [Calculation logic for Score_Renewables, Score_Thermal, Score_Daylight remains same as before]
+    # ... (insert the score calculation block here) ...
 
-    # Thermal
-    n_heat = (df[col_heat] - df[col_heat].min()) / (df[col_heat].max() - df[col_heat].min())
-    n_over = 1 - (df[col_over] - df[col_over].min()) / (df[col_over].max() - df[col_over].min())
-    df['Score_Thermal'] = (n_heat * 0.5) + (n_over * 0.5)
-
-    # Daylight
-    n_sda = (df[col_sDA] - df[col_sDA].min()) / (df[col_sDA].max() - df[col_sDA].min())
-    n_ase = 1 - (df[col_ASE] - df[col_ASE].min()) / (df[col_ASE].max() - df[col_ASE].min())
-    df['Score_Daylight'] = (n_sda * 0.5) + (n_ase * 0.5)
-
-    # Weighting Logic
+    # Final Ranking
     w_renew = 0.10 if renew_choice == "Mandatory" else 0.0
     multiplier = 0.9 if renew_choice == "Mandatory" else 1.0
-    w_energy = (energy_val / 100) * multiplier
-    w_daylight = (daylight_val / 100) * multiplier
+    df['Final_Score'] = (df['Score_Renewables'] * w_renew) + \
+                        (df['Score_Thermal'] * (energy_val/100 * multiplier)) + \
+                        (df['Score_Daylight'] * (daylight_val/100 * multiplier))
 
-    df['Final_Score'] = (df['Score_Renewables'] * w_renew) + (df['Score_Thermal'] * w_energy) + (df['Score_Daylight'] * w_daylight)
     top_10 = df.sort_values('Final_Score', ascending=False).head(10)
+    st.session_state['top_10_results'] = top_10
 
-    # --- 3D VISUALIZATION ---
-    st.subheader("🧊 3D Case Distribution (Top 10)")
-    fig = go.Figure(data=[go.Scatter3d(
-        x=top_10['Vertical_Steps_Section'],
-        y=top_10['Horizontal_Steps_Plan'],
-        z=top_10['Balcony_Steps'],
-        mode='markers+text',
-        text=top_10[col_id],
-        marker=dict(size=10, color=top_10['Final_Score'], colorscale='Viridis', opacity=0.8)
-    )])
-    fig.update_layout(scene=dict(xaxis_title='Vert Steps', yaxis_title='Horiz Steps', zaxis_title='Balcony Steps'))
-    st.plotly_chart(fig, use_container_width=True)
+# --- 4. 3D VISUALIZATION OF CASES ---
+if 'top_10_results' in st.session_state:
+    results = st.session_state['top_10_results']
+    
+    st.divider()
+    st.subheader("🧊 Top 10 Building Forms")
+    
+    # We create a dropdown to pick which of the top 10 to visualize
+    case_ids = results['Cases_ID'].tolist()
+    selected_id = st.selectbox("Select a Case ID to visualize its 3D form:", case_ids)
+    
+    # Get the parameters for the SELECTED case
+    case_data = results[results['Cases_ID'] == selected_id].iloc[0]
+    
+    # Map your CSV columns to the 5 inputs your 3D function expects
+    current_inputs = [
+        case_data['Vertical_Steps_Section'],
+        case_data['Horizontal_Steps_Plan'],
+        case_data['Balcony_Steps'],
+        case_data['PV_Canopy_Steps'],
+        case_data['Vertical_Louvre_Steps']
+    ]
+
+    col_3d, col_stats = st.columns([2, 1])
+    
+    with col_3d:
+        # Drawing the building based on the CSV numbers, NOT user sliders
+        ui_components.display_3d_model("your_geometry_name", current_inputs)
+    
+    with col_stats:
+        st.write("**Case Performance:**")
+        st.json({
+            "sDA": f"{case_data['sDA']}%",
+            "ASE": f"{case_data['ASE']}%",
+            "Winter Rad": case_data['Winter_Average_Radation_kWh/m2'],
+            "Summer Rad": case_data['Summer_Average_Radation_kWh/m2']
+        })
+
+    # --- 5. STATISTICAL INSIGHTS ---
+    # ... (insert the Architect Insight loop here) ...
 
     # --- ARCHITECT INSIGHTS ---
     st.subheader("🧐 Design Insights")
