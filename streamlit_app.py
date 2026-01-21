@@ -164,70 +164,76 @@ if 'top_10' in st.session_state:
 
     # ==========================================
    # ==========================================
-    # 8. CASE-SPECIFIC STRATEGIC ANALYSIS
+    # 8. CASE-SPECIFIC PERFORMANCE DIAGNOSTICS
     # ==========================================
     st.divider()
-    st.subheader(f"🧐 Strategic Analysis: Case {selected_id}")
+    st.subheader(f"🧐 Performance Diagnostics: Case {selected_id}")
     
-    active_params = [p for p in params if full_df[p].max() > 0]
+    # We compare the Selected Case to the average of the Top 10 Winners
+    top_10_means = top_10[params].mean()
     
-    if active_params:
-        # 1. Calculate General Trends (Correlations)
-        correlation_matrix = full_df[active_params + ['Score_Thermal', 'Score_Daylight']].corr()
-        
-        ins_cols = st.columns(len(active_params))
-
-        for i, p in enumerate(active_params):
-            with ins_cols[i]:
-                st.markdown(f"#### {p.replace('_',' ')}")
-                
-                # A. Identify the General Conflict
-                c_thermal = correlation_matrix.loc[p, 'Score_Thermal']
-                c_daylight = correlation_matrix.loc[p, 'Score_Daylight']
-                is_conflict = (c_thermal > 0.15 and c_daylight < -0.15) or (c_thermal < -0.15 and c_daylight > 0.15)
-                
-                # B. Look at the SPECIFIC Selected Case value
-                case_value = case_data[p]
-                mean_all = full_df[p].mean()
-                
-                # C. Provide Case-Specific Insight
-                if is_conflict:
-                    st.warning("⚖️ High-Conflict Zone")
-                    if case_value > mean_all:
-                        st.write(f"In Case {selected_id}, you chose a **higher** value. This prioritizes one goal over the other.")
-                    else:
-                        st.write(f"In Case {selected_id}, you chose a **lower** value to minimize the trade-off penalty.")
-                
-                elif abs(c_thermal) > 0.3 and abs(c_daylight) > 0.3:
-                    st.success("🤝 Synergy Move")
-                    st.write(f"Case {selected_id} utilizes this parameter as a core performance driver.")
-                
-                else:
-                    st.write("⚪ Neutral Position")
-
-                # D. Mitigation Advice (The "Fix")
-                if is_conflict and c_thermal > c_daylight:
-                    st.caption("💡 *Optimization Hint:* If Daylight is too low in this specific form, reduce Louvers.")
-                elif is_conflict:
-                    st.caption("💡 *Optimization Hint:* If Overheating occurs in this form, increase Canopy depth.")
+    diag_cols = st.columns(len(params))
+    
+    for i, p in enumerate(params):
+        with diag_cols[i]:
+            case_val = case_data[p]
+            t10_avg = top_10_means[p]
+            
+            st.markdown(f"#### {p.replace('_',' ')}")
+            
+            # Logic: How does THIS case differ from other winners?
+            diff = case_val - t10_avg
+            
+            if abs(diff) < 0.05:
+                st.write("⚖️ **Balanced**")
+                st.caption("This value is perfectly aligned with the optimal range.")
+            elif diff > 0:
+                st.write("⬆️ **Aggressive**")
+                st.caption(f"Uses more than the average top case. This boosts Thermal control but may strain Daylight.")
+            else:
+                st.write("⬇️ **Conservative**")
+                st.caption(f"Uses less than the average top case. This favors Daylight but may require more cooling.")
 
     # ==========================================
-    # 10. EXECUTIVE SUMMARY (Fixed for Exclusions)
+    # 9. DYNAMIC MITIGATION (The "Fix" Logic)
+    # ==========================================
+    st.subheader("🛠️ Strategic Adjustments")
+    
+    # Identify the "Weak Link" of the selected case
+    # If ASE is high (>10), suggest fixing shading. If sDA is low (<60), suggest fixing openings.
+    fixes = []
+    
+    if case_data[col_ASE] > 10:
+        fixes.append("⚠️ **High Glare (ASE):** This form has too much direct sun. **Fix:** Increase *Vertical Louvers* or *Canopy Depth*.")
+    
+    if case_data[col_sDA] < 50:
+        fixes.append("⚠️ **Low Daylight (sDA):** This form is too dark. **Fix:** Reduce *Louver Depth* or decrease *Balcony* projection.")
+        
+    if case_data[col_over] > base_case[col_over]:
+        fixes.append("⚠️ **Heat Gain:** This case is hotter than the Base Case. **Fix:** Increase *Vertical Steps* to improve self-shading.")
+
+    if fixes:
+        for f in fixes:
+            st.info(f)
+    else:
+        st.success("✅ **Balanced Performance:** This specific case manages all conflicts effectively.")
+
+    # ==========================================
+    # 10. REFINED EXECUTIVE SUMMARY
     # ==========================================
     st.divider()
     st.subheader("💬 Executive Design Summary")
     
-    for p in params:
-        # Check if user has excluded this parameter
-        if full_df[p].max() == 0:
-            continue # Skip parameters that are excluded (always 0)
-            
-        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
+    active_params = [p for p in params if full_df[p].nunique() > 1]
+    
+    for p in active_params:
+        v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
         
-        # Stability check: Only valid if there is variance in the original data
-        if full_df[p].var() > 0:
-            v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-            shift = "higher values" if mean_top > mean_all else "lower values"
-            stability = "critical for performance" if v_ratio < 0.6 else "flexible for design"
+        if v_ratio < 0.3:
+            impact = "is a **Non-Negotiable** requirement for this performance level."
+        elif v_ratio < 0.7:
+            impact = "is a **Strong Preference** for optimal results."
+        else:
+            impact = "is **Flexible**; you can adjust this for aesthetic reasons."
             
-            st.write(f"• Top designs prefer **{shift}** for **{p.replace('_',' ')}**. This is **{stability}**.")
+        st.write(f"• The data shows that **{p.replace('_',' ')}** {impact}")
