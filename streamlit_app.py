@@ -143,23 +143,27 @@ if 'top_10' in st.session_state:
 
     # --- INSIGHTS ---
     st.divider()
-    st.subheader("🧐 Design Insights")
+    st.subheader("Design Insights")
     params = ['Vertical_Steps_Section', 'Horizontal_Steps_Plan', 'Balcony_Steps', 'PV_Canopy_Steps', 'Vertical_Louvre_Steps']
     
     cols = st.columns(len(params))
-    for i, p in enumerate(params):
-        with cols[i]:
-            mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
-            var_all = full_df[p].var()
-            var_top = top_10[p].var()
-            v_ratio = var_top / var_all if var_all > 0 else 1
-            _, p_val = ks_2samp(full_df[p], top_10[p])
-            
-            direction = "Higher values" if mean_top > mean_all else "Lower values"
-            stability = "Critical for performance" if v_ratio < 0.7 else "Allows for flexibility"
-            
-            st.markdown(f"**{p.replace('_',' ')}**")
-            st.write(f"• Prefer: **{direction}**")
-            st.write(f"• Role: **{stability}**")
-            if p_val < 0.05:
-                st.caption("✅ Statistically Significant")
+    for p in params:
+    mean_all = full_df[p].mean()
+    mean_top = top_10[p].mean()
+    var_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
+    
+    # Directional Logic
+    direction = "increase" if mean_top > mean_all else "decrease"
+    
+    # Importance Logic (Sensitivity)
+    if var_ratio < 0.2:
+        importance = "CORE CONSTRAINT: This value is strictly required for high performance."
+    elif var_ratio < 0.6:
+        importance = "RECOMMENDED: This value is preferred but has some room for adjustment."
+    else:
+        importance = "FLEXIBLE: You can modify this based on aesthetic preference without losing performance."
+
+    # Final Output
+    st.markdown(f"### {p.replace('_',' ')}")
+    st.write(f"👉 **Direction:** To reach the Top 10, you should **{direction}** this parameter.")
+    st.write(f"📐 **Architect's Freedom:** {importance}")
