@@ -198,54 +198,49 @@ if 'top_10' in st.session_state:
     else:
         st.info("Note: A 'Pure Base Case' (all parameters = 0) was not found in the filtered data for comparison.")
 
-    # --- 2. PARAMETER DISTRIBUTION ANALYSIS ---
+    # --- SMART ARCHITECT INSIGHTS (Conflict & Correlation) ---
     st.divider()
-    st.subheader("📊 Parameter Distribution: Full Dataset vs. Top 10")
-    
-    dist_data = []
-    for p in params:
-        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
-        var_all, var_top = full_df[p].var(), top_10[p].var()
-        v_ratio = var_top / (var_all + 1e-6)
-        _, p_val = ks_2samp(full_df[p], top_10[p])
-        
-        dist_data.append({
-            "Parameter": p.replace('_', ' '),
-            "Mean (All)": round(mean_all, 3),
-            "Mean (Top 10)": round(mean_top, 3),
-            "Var (All)": round(var_all, 3),
-            "Var (Top 10)": round(var_top, 3),
-            "Var Ratio": round(v_ratio, 3),
-            "P-Value": round(p_val, 4)
-        })
-    
-    st.table(pd.DataFrame(dist_data))
+    st.subheader("🧐 Strategic Conflict Analysis")
+    st.info("This section identifies trade-offs. A 'Conflict' occurs when a parameter improves one score but degrades another.")
 
-    # --- 3. TRANSLATED ARCHITECTURAL SENTENCES ---
-    st.divider()
-    st.subheader("💬 Executive Design Summary")
+    # List of scores to check correlation against
+    score_cols = ['Score_Renewables', 'Score_Thermal', 'Score_Daylight']
     
-    summary_sentences = []
-    for p in params:
-        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
-        var_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-        _, p_val = ks_2samp(full_df[p], top_10[p])
-        
-        # 1. Directional preference
-        shift = "higher values" if mean_top > mean_all else "lower values"
-        sentence = f"• Top designs prefer **{shift}** of **{p.replace('_',' ')}**."
-        
-        # 2. Stability/Importance
-        if var_ratio < 0.6:
-            sentence += " This parameter is **critical for performance**, showing high stability among winners."
-        else:
-            sentence += " This parameter allows for **design flexibility**."
+    # We use the full_df (the filtered dataset) for correlation to see overall trends
+    correlation_matrix = full_df[params + score_cols].corr()
+
+    # Create columns for parameters
+    ins_cols = st.columns(len(params))
+
+    for i, p in enumerate(params):
+        with ins_cols[i]:
+            st.markdown(f"#### {p.replace('_',' ')}")
             
-        # 3. Significance
-        if p_val < 0.05:
-            sentence += " (Statistically meaningful change)."
-        
-        summary_sentences.append(sentence)
-        
-    for s in summary_sentences:
-        st.write(s)
+            # Get correlations for this parameter
+            corr_thermal = correlation_matrix.loc[p, 'Score_Thermal']
+            corr_daylight = correlation_matrix.loc[p, 'Score_Daylight']
+            
+            # Determine Conflict Logic
+            # If one is positive (>0.2) and one is negative (<-0.2), it's a conflict
+            if (corr_thermal > 0.15 and corr_daylight < -0.15) or (corr_thermal < -0.15 and corr_daylight > 0.15):
+                st.warning("⚠️ **High Conflict**")
+                if corr_thermal > corr_daylight:
+                    st.caption(f"Increasing this helps **Thermal** but hurts **Daylight**.")
+                else:
+                    st.caption(f"Increasing this helps **Daylight** but hurts **Thermal**.")
+            
+            elif abs(corr_thermal) > 0.3 and abs(corr_daylight) > 0.3:
+                st.success("🤝 **Synergy**")
+                st.caption("This parameter benefits both Energy and Daylight goals simultaneously.")
+            
+            else:
+                st.write("⚖️ **Neutral / Balanced**")
+                st.caption("Low direct conflict between primary performance goals.")
+
+            # Show the "Target" based on Top 10 mean vs All mean
+            mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
+            direction = "⬆️ Increase" if mean_top > mean_all else "⬇️ Decrease"
+            st.markdown(f"**Top 10 Trend:** {direction}")
+
+    # --- PERFORMANCE IMPROVEMENT FROM BASE CASE ---
+    # [Paste your Base Case logic here]
