@@ -161,26 +161,37 @@ if 'top_10' in st.session_state:
         st.dataframe(top_10[[col_global] + params], hide_index=True)
 
     # ==========================================
-    # 8. PERFORMANCE DIAGNOSTICS
+    # 8. PERFORMANCE DIAGNOSTICS: {selected_global}
     # ==========================================
     st.divider()
     st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
+    
     top_10_means = top_10[params].mean()
     diag_cols = st.columns(len(params))
     
     for i, p in enumerate(params):
         with diag_cols[i]:
             st.markdown(f"#### {p.replace('_',' ')}")
+            
             if full_df[p].max() == 0 and full_df[p].min() == 0:
                 st.write("⚪ **Excluded**")
+                st.caption("Feature is disabled.")
             else:
-                diff = case_data[p] - top_10_means[p]
+                case_val = case_data[p]
+                t10_avg = top_10_means[p]
+                diff = case_val - t10_avg
+                
+                # RESTORED: Detailed Architectural Captions
                 if abs(diff) < 0.05:
                     st.write("⚖️ **Balanced**")
+                    st.caption("Matches the optimal range of the top performers.")
                 elif diff > 0:
                     st.write("⬆️ **Aggressive**")
+                    st.caption("Higher than average. Prioritizes shading/form over light penetration.")
                 else:
                     st.write("⬇️ **Conservative**")
+                    st.caption("Lower than average. Favors sky visibility and maximum daylight.")
+                    
 
     # ==========================================
     # 9. DYNAMIC STRATEGIC ADJUSTMENTS (With +/- Logic)
@@ -218,9 +229,13 @@ if 'top_10' in st.session_state:
         fixes.append(f"🔥 **Summer Heat:** High radiation. Try **{step_type}** steps (~{best_s_val}m) or increasing *Canopy Depth*.")
 
     if fixes:
-        for f in fixes: st.info(f)
-    else:
-        st.success("✅ **Balanced Performance:** This specific geometry manages all conflicts effectively.")
+        for f in fixes:
+            # Check if the parameter mentioned in the fix is 'Flexible'
+            is_flexible = any(p.replace('_',' ') in f and "Flexible" in role for p in params)
+            if is_flexible:
+                st.info(f + " *(Note: You have high design freedom here)*")
+            else:
+                st.warning(f + " *(Note: This is a critical performance constraint)*")
     
     # ==========================================
     # 10. EXECUTIVE DESIGN SUMMARY (Architectural Logic)
