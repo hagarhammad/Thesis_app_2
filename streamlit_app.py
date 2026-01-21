@@ -214,28 +214,39 @@ if 'top_10' in st.session_state:
                 st.caption(f"Uses less than the average top case. This favors Daylight but may require more cooling.")
 
     # ==========================================
-    # 9. DYNAMIC MITIGATION (The "Fix" Logic)
+    # ==========================================
+    # 9. DYNAMIC MITIGATION (Case-Specific Fixes)
     # ==========================================
     st.subheader("🛠️ Strategic Adjustments")
     
-    # Identify the "Weak Link" of the selected case
-    # If ASE is high (>10), suggest fixing shading. If sDA is low (<60), suggest fixing openings.
+    # 1. Define "Success Thresholds" based on the Top 10 Average
+    # This ensures the advice is relative to the best performers, not a static number
+    ideal_ase = top_10[col_ASE].min()  # The best (lowest) ASE in your top 10
+    ideal_sda = top_10[col_sDA].max()  # The best (highest) sDA in your top 10
+    
     fixes = []
     
-    if case_data[col_ASE] > 10:
-        fixes.append("⚠️ **High Glare (ASE):** This form has too much direct sun. **Fix:** Increase *Vertical Louvers* or *Canopy Depth*.")
+    # Check ASE: If this case is worse than the best in the Top 10
+    if case_data[col_ASE] > ideal_ase:
+        # Determine the best tool to fix it based on your Active Parameters
+        if 'Vertical_Louvre_Steps' in active_params:
+            fixes.append(f"⚠️ **Glare (ASE):** This case has more glare than the #1 case. **Fix:** Increase *Louvers* to {top_10[top_10[col_ASE] == ideal_ase]['Vertical_Louvre_Steps'].values[0]} units.")
+        else:
+            fixes.append(f"⚠️ **Glare (ASE):** Higher than optimal. **Fix:** Increase *Canopy Depth* to block high-angle sun.")
     
-    if case_data[col_sDA] < 50:
-        fixes.append("⚠️ **Low Daylight (sDA):** This form is too dark. **Fix:** Reduce *Louver Depth* or decrease *Balcony* projection.")
-        
+    # Check sDA: If this case is darker than the best in the Top 10
+    if case_data[col_sDA] < ideal_sda:
+        fixes.append(f"☀️ **Daylight (sDA):** This case is darker than your best options. **Fix:** Reduce *Balcony* depth or check if *Horizontal Steps* can be increased.")
+
+    # Check Thermal: If this case is hotter than the base case
     if case_data[col_over] > base_case[col_over]:
-        fixes.append("⚠️ **Heat Gain:** This case is hotter than the Base Case. **Fix:** Increase *Vertical Steps* to improve self-shading.")
+        fixes.append(f"🔥 **Thermal Gain:** Summer radiation is higher than the Base Case. **Fix:** Increase *Vertical Steps* to improve self-shading.")
 
     if fixes:
         for f in fixes:
             st.info(f)
     else:
-        st.success("✅ **Balanced Performance:** This specific case manages all conflicts effectively.")
+        st.success("✨ **Optimized Form:** This specific case represents the peak performance for your current priorities.")
 
     # ==========================================
     # 10. REFINED EXECUTIVE SUMMARY
