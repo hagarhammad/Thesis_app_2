@@ -185,59 +185,85 @@ if 'top_10' in st.session_state:
         # Show Global_ID as the primary column in the table
         schedule_cols = [col_global] + params
         st.dataframe(top_10[schedule_cols], hide_index=True)
-        st.info(f"Viewing: {selected_global} (Internal Case: {current_id})")
+        st.info(f"Viewing: {selected_global} (Typology: {current_id})")
 
     # ==========================================
-    # 8. PERFORMANCE DIAGNOSTICS (Updated for Global ID)
+    # 8. PERFORMANCE DIAGNOSTICS: {selected_global}
     # ==========================================
     st.divider()
     st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
     
-    # Define active_params globally within this block
     active_params = [p for p in params if full_df[p].max() > 0]
     top_10_means = top_10[params].mean()
     
     diag_cols = st.columns(len(params))
     for i, p in enumerate(params):
         with diag_cols[i]:
-            case_val = case_data[p]
-            t10_avg = top_10_means[p]
             st.markdown(f"#### {p.replace('_',' ')}")
-            diff = case_val - t10_avg
             
-            if abs(diff) < 0.05:
-                st.write("⚖️ **Balanced**")
-            elif diff > 0:
-                st.write("⬆️ **Aggressive**")
+            # CHECK: If the parameter is excluded (Max value is 0 in the filtered set)
+            if full_df[p].max() == 0:
+                st.write("⚪ **Excluded**")
+                st.caption("This feature is currently disabled via the sidebar filters.")
             else:
-                st.write("⬇️ **Conservative**")
+                case_val = case_data[p]
+                t10_avg = top_10_means[p]
+                diff = case_val - t10_avg
+                
+                # Compare this case to the "winning average"
+                if abs(diff) < 0.05:
+                    st.write("⚖️ **Balanced**")
+                    st.caption("Matches the optimal range found in the top performers.")
+                elif diff > 0:
+                    st.write("⬆️ **Aggressive**")
+                    st.caption(f"Uses more than the average top case. Prioritizes shading/form over light.")
+                else:
+                    st.write("⬇️ **Conservative**")
+                    st.caption(f"Uses less than the average top case. Favors sky visibility/light.")
 
     # ==========================================
-    # 9. DYNAMIC MITIGATION (The "Fix" Logic)
+    # 9. DYNAMIC STRATEGIC ADJUSTMENTS (The "Fix" Logic)
     # ==========================================
-    st.subheader("🛠️ Strategic Adjustments")
+    st.subheader("🛠️ Case-Specific Strategic Adjustments")
     
+    active_params = [p for p in params if full_df[p].max() > 0]
+    
+    # Identify "Peak Performers" for benchmarking
     best_ase_val = top_10[col_ASE].min()
     best_sda_val = top_10[col_sDA].max()
-    best_ase_case = top_10[top_10[col_ASE] == best_ase_val].iloc[0]
+    best_winter_val = top_10[col_heat].max()  # Higher is better for winter
+    best_summer_val = top_10[col_over].min()  # Lower is better for summer
+    
+    # Get benchmark cases to find their "recipes"
+    best_winter_case = top_10[top_10[col_heat] == best_winter_val].iloc[0]
+    best_summer_case = top_10[top_10[col_over] == best_summer_val].iloc[0]
     
     fixes = []
+    
+    # 1. GLARE CHECK (ASE)
     if case_data[col_ASE] > best_ase_val:
-        if 'Vertical_Louvre_Steps' in active_params:
-            target_louver = best_ase_case['Vertical_Louvre_Steps']
-            fixes.append(f"⚠️ **Glare (ASE):** {selected_global} has more glare than the best performers. **Fix:** Adjust *Louvers* toward {target_louver}m.")
-        else:
-            fixes.append(f"⚠️ **Glare (ASE):** High levels. **Fix:** Increase *Canopy Depth* or *Vertical Steps*.")
+        fixes.append(f"⚠️ **Glare (ASE):** Higher than optimal. **Fix:** Increase *Louvers* or *Canopy Depth* to block direct high-angle sun.")
 
+    # 2. DAYLIGHT CHECK (sDA)
     if case_data[col_sDA] < best_sda_val:
-        fixes.append(f"☀️ **Daylight (sDA):** Lower than top-tier options. **Fix:** Reduce *Balcony* depth or *Louver* thickness.")
+        fixes.append(f"☀️ **Daylight (sDA):** Lower than top-tier options. **Fix:** Reduce *Balcony* depth or *Louver* thickness to improve sky visibility.")
 
+    # 3. WINTER RADIATION CHECK (Heating)
+    if case_data[col_heat] < best_winter_val:
+        target_v_steps = best_winter_case['Vertical_Steps_Section']
+        fixes.append(f"❄️ **Winter Heat Loss:** Low solar gain. **Fix:** Adjust *Vertical Steps* toward {target_v_steps}m to allow deeper winter sun penetration.")
+
+    # 4. SUMMER RADIATION CHECK (Overheating)
+    if case_data[col_over] > best_summer_val:
+        target_canopy = best_summer_case['PV_Canopy_Steps']
+        fixes.append(f"🔥 **Summer Overheating:** High radiation detected. **Fix:** Increase *Canopy* toward {target_canopy}m or add more *Horizontal Steps* for self-shading.")
+
+    # DISPLAY THE FIXES
     if fixes:
         for f in fixes:
             st.info(f)
     else:
-        st.success("✅ **Balanced Performance:** No conflicts detected for this specific geometry.")
-
+        st.success("✅ **Peak Performance:** This specific geometry successfully balances Daylighting, Glare, and Thermal loads.")
     
     # ==========================================
     # 10. EXECUTIVE DESIGN SUMMARY
