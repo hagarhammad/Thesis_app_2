@@ -47,7 +47,7 @@ df_raw = load_data()
 st.sidebar.header("Design Choices")
 
 def apply_filter(df, col, label):
-    choice = st.sidebar.radio(label, ["Flexible", "Required", "Excluded"], horizontal=True, key=f"filter_{col}")
+    choice = st.sidebar.radio(label, ["Required", "Flexible", "Excluded"], horizontal=True, key=f"filter_{col}")
     if choice == "Required": 
         return df[df[col] > 0]
     elif choice == "Excluded": 
@@ -55,11 +55,12 @@ def apply_filter(df, col, label):
     return df
 
 df_filtered = df_raw.copy()
-df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
-df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
-df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
 df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Steps")
 df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
+df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
+df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
+df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
+
 
 # ==========================================
 # 5. DESIGN PRIORITIES
