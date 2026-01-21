@@ -92,7 +92,7 @@ w_daylight = (daylight_display / 100) * pool
 # ==========================================
 # 6. CALCULATION ENGINE
 # ==========================================
-if st.button("🚀 Find Top 10 Best Cases", use_container_width=True):
+if st.button("🚀 Find Best Cases", use_container_width=True):
     df = df_filtered.copy()
     if df.empty:
         st.warning("No cases match your filter criteria.")
@@ -160,7 +160,7 @@ if 'top_10' in st.session_state:
         # Display Global_ID and Parameters for the Selected Case
         schedule_cols = [col_global] + params
         st.dataframe(top_10[schedule_cols], hide_index=True)
-        st.info(f"Viewing: Case {case_data[col_global]} (Typology: {selected_id})")
+        st.info(f"Viewing: {case_data[col_global]} (Typology: {selected_id})")
 
     # ==========================================
     # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
