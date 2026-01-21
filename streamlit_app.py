@@ -137,7 +137,7 @@ if st.button("🚀 Find Best Cases", use_container_width=True):
         st.success(f"Optimized for: Energy ({round(current_w_energy*100)}%) | Daylight ({round(current_w_daylight*100)}%)")
 
 # ==========================================
-# 7. DYNAMIC OUTPUTS
+# 7. DYNAMIC OUTPUTS (Global ID focus)
 # ==========================================
 if 'top_10' in st.session_state:
     top_10 = st.session_state['top_10']
@@ -147,11 +147,16 @@ if 'top_10' in st.session_state:
     col_viz, col_table = st.columns([2, 1])
     
     with col_viz:
-        st.subheader("3D Building Form")
-        selected_id = st.selectbox("Select Case ID to visualize:", top_10[col_id])
-        case_data = top_10[top_10[col_id] == selected_id].iloc[0]
+        st.subheader("🧊 3D Building Form")
         
-        # --- DYNAMIC PERFORMANCE VS BASE CASE (Moved here) ---
+        # FIX: Dropdown now uses Global_ID for selection
+        selected_global = st.selectbox("Select Building (Global ID):", top_10[col_global])
+        
+        # Link the selected Global ID back to the data
+        case_data = top_10[top_10[col_global] == selected_global].iloc[0]
+        current_id = case_data[col_id] # Used for 3D logic
+        
+        # --- DYNAMIC PERFORMANCE VS BASE CASE ---
         base_case_search = df_raw[df_raw[col_id].astype(str).str.contains('Base', case=False, na=False)]
         
         if not base_case_search.empty:
@@ -168,109 +173,67 @@ if 'top_10' in st.session_state:
                 b_val, c_val = base_case[data['col']], case_data[data['col']]
                 diff_pct = ((c_val - b_val) / (b_val + 1e-6)) * 100
                 with imp_cols[i]:
-                    st.metric(label, f"{round(c_val, 1)}", f"{round(diff_pct, 1)}% vs Base", delta_color="inverse" if data['inv'] else "normal")
+                    st.metric(label, f"{round(c_val, 1)}", f"{round(diff_pct, 1)}% vs Base", 
+                              delta_color="inverse" if data['inv'] else "normal")
         
-        # Visualize 3D
+        # Visualize 3D using the case data
         inputs_3d = [case_data[p] for p in params]
         ui_components.display_3d_model("Type_A", inputs_3d)
 
     with col_table:
-        st.subheader("🏆 Case Schedule")
-        # Display Global_ID and Parameters for the Selected Case
+        st.subheader("🏆 Selected Case Schedule")
+        # Show Global_ID as the primary column in the table
         schedule_cols = [col_global] + params
         st.dataframe(top_10[schedule_cols], hide_index=True)
-        st.info(f"Viewing: {case_data[col_global]} (Typology: {selected_id})")
+        st.info(f"Viewing: {selected_global} (Internal Case: {current_id})")
 
     # ==========================================
-   # ==========================================
-    # 8. CASE-SPECIFIC PERFORMANCE DIAGNOSTICS
+    # 8. PERFORMANCE DIAGNOSTICS (Updated for Global ID)
     # ==========================================
     st.divider()
-    st.subheader(f"🧐 Performance Diagnostics: Case {selected_id}")
+    st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
     
-    # We compare the Selected Case to the average of the Top 10 Winners
+    # Define active_params globally within this block
+    active_params = [p for p in params if full_df[p].max() > 0]
     top_10_means = top_10[params].mean()
     
     diag_cols = st.columns(len(params))
-    
     for i, p in enumerate(params):
         with diag_cols[i]:
             case_val = case_data[p]
             t10_avg = top_10_means[p]
-            
             st.markdown(f"#### {p.replace('_',' ')}")
-            
-            # Logic: How does THIS case differ from other winners?
             diff = case_val - t10_avg
             
             if abs(diff) < 0.05:
                 st.write("⚖️ **Balanced**")
-                st.caption("This value is perfectly aligned with the optimal range.")
             elif diff > 0:
                 st.write("⬆️ **Aggressive**")
-                st.caption(f"Uses more than the average top case. This boosts Thermal control but may strain Daylight.")
             else:
                 st.write("⬇️ **Conservative**")
-                st.caption(f"Uses less than the average top case. This favors Daylight but may require more cooling.")
 
     # ==========================================
+    # 9. DYNAMIC MITIGATION (The "Fix" Logic)
     # ==========================================
-    # 9. DYNAMIC STRATEGIC ADJUSTMENTS (The "Fix" Logic)
-    # ==========================================
-    st.subheader("🛠️ Case-Specific Strategic Adjustments")
+    st.subheader("🛠️ Strategic Adjustments")
     
-    # FIX: Define active_params here so the NameError disappears
-    active_params = [p for p in params if full_df[p].max() > 0]
-    
-    # Identify the "Peak Performers" in your current Top 10 to use as benchmarks
     best_ase_val = top_10[col_ASE].min()
     best_sda_val = top_10[col_sDA].max()
-    
-    # Get the ID of the case that has the best ASE to see its "recipe"
     best_ase_case = top_10[top_10[col_ASE] == best_ase_val].iloc[0]
     
     fixes = []
-    
-    # 1. DYNAMIC GLARE CHECK
     if case_data[col_ASE] > best_ase_val:
-        # If the user allows Louvers, suggest the Louver value from the best ASE case
         if 'Vertical_Louvre_Steps' in active_params:
             target_louver = best_ase_case['Vertical_Louvre_Steps']
-            fixes.append(f"⚠️ **Glare (ASE):** Case {selected_id} has more glare than your best performers. **Fix:** Adjust *Louvers* toward {target_louver}m to match the top-tier shading.")
+            fixes.append(f"⚠️ **Glare (ASE):** {selected_global} has more glare than the best performers. **Fix:** Adjust *Louvers* toward {target_louver}m.")
         else:
-            fixes.append(f"⚠️ **Glare (ASE):** High levels detected. **Fix:** Since Louvers are excluded, try increasing *Canopy Depth* or *Vertical Steps*.")
+            fixes.append(f"⚠️ **Glare (ASE):** High levels. **Fix:** Increase *Canopy Depth* or *Vertical Steps*.")
 
-    # 2. DYNAMIC DAYLIGHT CHECK
     if case_data[col_sDA] < best_sda_val:
-        fixes.append(f"☀️ **Daylight (sDA):** This form is slightly darker than the best options. **Fix:** Reduce *Balcony* depth or *Louver* thickness to allow more sky visibility.")
+        fixes.append(f"☀️ **Daylight (sDA):** Lower than top-tier options. **Fix:** Reduce *Balcony* depth or *Louver* thickness.")
 
-    # 3. THERMAL CHECK
-    if case_data[col_over] > base_case[col_over]:
-        fixes.append(f"🔥 **Summer Heat:** This case allows more radiation than the Base Case. **Fix:** Increase *Vertical Steps (Section)* to improve self-shading.")
-
-    # DISPLAY THE FIXES
     if fixes:
         for f in fixes:
             st.info(f)
     else:
-        st.success("✅ **Balanced Performance:** This specific case managed to resolve all performance conflicts effectively.")
-
-    # ==========================================
-    # 10. REFINED EXECUTIVE SUMMARY
-    # ==========================================
-    st.divider()
-    st.subheader("💬 Executive Design Summary")
-    
-    active_params = [p for p in params if full_df[p].nunique() > 1]
-    
-    for p in active_params:
-        v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-        
-        if v_ratio < 0.3:
-            impact = "is a **Non-Negotiable** requirement for this performance level."
-        elif v_ratio < 0.7:
-            impact = "is a **Strong Preference** for optimal results."
-        else:
-            impact = "is **Flexible**; you can adjust this for aesthetic reasons."
-            
-        st.write(f"• The data shows that **{p.replace('_',' ')}** {impact}")
+        st.success("✅ **Balanced Performance:** No conflicts detected for this specific geometry.")
