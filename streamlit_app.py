@@ -7,15 +7,13 @@ from scipy.stats import ks_2samp
 st.set_page_config(layout="wide", page_title="Architectural Case Finder")
 
 st.markdown(
-    """
     <style>
     /* This target the sidebar width */
     [data-testid="stSidebar"] {
         min-width: 350px;
         max-width: 350px;
     }
-    </style>
-    """,
+    </style>,
     unsafe_allow_html=True
 )
 
