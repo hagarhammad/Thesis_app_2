@@ -15,7 +15,7 @@ def load_data():
 df_raw = load_data()
 
 # --- 3. GLOBAL COLUMN DEFINITIONS (Move them here!) ---
-col_id = 'Cases_ID' # Or whatever your ID column is named
+col_id = 'Cases'
 col_heat = 'Winter_Average_Radation_kWh/m2'
 col_over = 'Summer_Average_Radation_kWh/m2'
 col_sDA = 'sDA'
