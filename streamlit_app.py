@@ -215,38 +215,45 @@ if 'top_10' in st.session_state:
 
     # ==========================================
     # ==========================================
-    # 9. DYNAMIC MITIGATION (Case-Specific Fixes)
+    # 9. DYNAMIC STRATEGIC ADJUSTMENTS (The "Fix" Logic)
     # ==========================================
-    st.subheader("🛠️ Strategic Adjustments")
+    st.subheader("🛠️ Case-Specific Strategic Adjustments")
     
-    # 1. Define "Success Thresholds" based on the Top 10 Average
-    # This ensures the advice is relative to the best performers, not a static number
-    ideal_ase = top_10[col_ASE].min()  # The best (lowest) ASE in your top 10
-    ideal_sda = top_10[col_sDA].max()  # The best (highest) sDA in your top 10
+    # FIX: Define active_params here so the NameError disappears
+    active_params = [p for p in params if full_df[p].max() > 0]
+    
+    # Identify the "Peak Performers" in your current Top 10 to use as benchmarks
+    best_ase_val = top_10[col_ASE].min()
+    best_sda_val = top_10[col_sDA].max()
+    
+    # Get the ID of the case that has the best ASE to see its "recipe"
+    best_ase_case = top_10[top_10[col_ASE] == best_ase_val].iloc[0]
     
     fixes = []
     
-    # Check ASE: If this case is worse than the best in the Top 10
-    if case_data[col_ASE] > ideal_ase:
-        # Determine the best tool to fix it based on your Active Parameters
+    # 1. DYNAMIC GLARE CHECK
+    if case_data[col_ASE] > best_ase_val:
+        # If the user allows Louvers, suggest the Louver value from the best ASE case
         if 'Vertical_Louvre_Steps' in active_params:
-            fixes.append(f"⚠️ **Glare (ASE):** This case has more glare than the #1 case. **Fix:** Increase *Louvers* to {top_10[top_10[col_ASE] == ideal_ase]['Vertical_Louvre_Steps'].values[0]} units.")
+            target_louver = best_ase_case['Vertical_Louvre_Steps']
+            fixes.append(f"⚠️ **Glare (ASE):** Case {selected_id} has more glare than your best performers. **Fix:** Adjust *Louvers* toward {target_louver}m to match the top-tier shading.")
         else:
-            fixes.append(f"⚠️ **Glare (ASE):** Higher than optimal. **Fix:** Increase *Canopy Depth* to block high-angle sun.")
-    
-    # Check sDA: If this case is darker than the best in the Top 10
-    if case_data[col_sDA] < ideal_sda:
-        fixes.append(f"☀️ **Daylight (sDA):** This case is darker than your best options. **Fix:** Reduce *Balcony* depth or check if *Horizontal Steps* can be increased.")
+            fixes.append(f"⚠️ **Glare (ASE):** High levels detected. **Fix:** Since Louvers are excluded, try increasing *Canopy Depth* or *Vertical Steps*.")
 
-    # Check Thermal: If this case is hotter than the base case
+    # 2. DYNAMIC DAYLIGHT CHECK
+    if case_data[col_sDA] < best_sda_val:
+        fixes.append(f"☀️ **Daylight (sDA):** This form is slightly darker than the best options. **Fix:** Reduce *Balcony* depth or *Louver* thickness to allow more sky visibility.")
+
+    # 3. THERMAL CHECK
     if case_data[col_over] > base_case[col_over]:
-        fixes.append(f"🔥 **Thermal Gain:** Summer radiation is higher than the Base Case. **Fix:** Increase *Vertical Steps* to improve self-shading.")
+        fixes.append(f"🔥 **Summer Heat:** This case allows more radiation than the Base Case. **Fix:** Increase *Vertical Steps (Section)* to improve self-shading.")
 
+    # DISPLAY THE FIXES
     if fixes:
         for f in fixes:
             st.info(f)
     else:
-        st.success("✨ **Optimized Form:** This specific case represents the peak performance for your current priorities.")
+        st.success("✅ **Balanced Performance:** This specific case managed to resolve all performance conflicts effectively.")
 
     # ==========================================
     # 10. REFINED EXECUTIVE SUMMARY
