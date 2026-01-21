@@ -39,11 +39,13 @@ def apply_filter(df, col, label):
     return df
 
 df_filtered = df_raw.copy()
-df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
-df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
-df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
 df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Steps")
 df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
+df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
+df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
+df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
+
+
 
 # --- MAIN UI ---
 st.title("Architectural Performance Optimization")
@@ -167,3 +169,94 @@ if 'top_10' in st.session_state:
         st.markdown(f"### {p.replace('_',' ')}")
         st.write(f"👉 **Direction:** To reach the Top 10, you should **{direction}** this parameter.")
         st.write(f"📐 **Architect's Freedom:** {importance}")
+
+# --- 1. PERFORMANCE IMPROVEMENT FROM BASE CASE ---
+    st.divider()
+    st.subheader("📈 Performance Improvement from Base Case")
+    
+    # Identify the Base Case (where all design parameters are 0)
+    base_case_search = full_df[
+        (full_df['Vertical_Steps_Section'] == 0) & 
+        (full_df['Horizontal_Steps_Plan'] == 0) & 
+        (full_df['Balcony_Steps'] == 0) & 
+        (full_df['PV_Canopy_Steps'] == 0) & 
+        (full_df['Vertical_Louvre_Steps'] == 0)
+    ]
+    
+    if not base_case_search.empty:
+        base_case = base_case_search.iloc[0]
+        indicators = {
+            'sDA': col_sDA, 
+            'ASE': col_ASE, 
+            'Winter Radiation': col_heat, 
+            'Summer Radiation': col_over
+        }
+        
+        # Calculate average performance of Top 10
+        top_10_avg = top_10[list(indicators.values())].mean()
+        
+        imp_cols = st.columns(4)
+        for i, (label, col) in enumerate(indicators.items()):
+            b_val = base_case[col]
+            t_val = top_10_avg[col]
+            
+            # Calculate % change
+            # Note: For ASE and Summer Radiation, lower is usually better
+            diff_pct = ((t_val - b_val) / (b_val + 1e-6)) * 100
+            
+            with imp_cols[i]:
+                st.metric(label, f"{round(t_val, 1)}", f"{round(diff_pct, 1)}% vs Base")
+    else:
+        st.info("Note: A 'Pure Base Case' (all parameters = 0) was not found in the filtered data for comparison.")
+
+    # --- 2. PARAMETER DISTRIBUTION ANALYSIS ---
+    st.divider()
+    st.subheader("📊 Parameter Distribution: Full Dataset vs. Top 10")
+    
+    dist_data = []
+    for p in params:
+        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
+        var_all, var_top = full_df[p].var(), top_10[p].var()
+        v_ratio = var_top / (var_all + 1e-6)
+        _, p_val = ks_2samp(full_df[p], top_10[p])
+        
+        dist_data.append({
+            "Parameter": p.replace('_', ' '),
+            "Mean (All)": round(mean_all, 3),
+            "Mean (Top 10)": round(mean_top, 3),
+            "Var (All)": round(var_all, 3),
+            "Var (Top 10)": round(var_top, 3),
+            "Var Ratio": round(v_ratio, 3),
+            "P-Value": round(p_val, 4)
+        })
+    
+    st.table(pd.DataFrame(dist_data))
+
+    # --- 3. TRANSLATED ARCHITECTURAL SENTENCES ---
+    st.divider()
+    st.subheader("💬 Executive Design Summary")
+    
+    summary_sentences = []
+    for p in params:
+        mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
+        var_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
+        _, p_val = ks_2samp(full_df[p], top_10[p])
+        
+        # 1. Directional preference
+        shift = "higher values" if mean_top > mean_all else "lower values"
+        sentence = f"• Top designs prefer **{shift}** of **{p.replace('_',' ')}**."
+        
+        # 2. Stability/Importance
+        if var_ratio < 0.6:
+            sentence += " This parameter is **critical for performance**, showing high stability among winners."
+        else:
+            sentence += " This parameter allows for **design flexibility**."
+            
+        # 3. Significance
+        if p_val < 0.05:
+            sentence += " (Statistically meaningful change)."
+        
+        summary_sentences.append(sentence)
+        
+    for s in summary_sentences:
+        st.write(s)
