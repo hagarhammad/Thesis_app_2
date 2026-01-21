@@ -18,7 +18,7 @@ df_raw = load_data()
 # --- SIDEBAR: DESIGN FILTERS (Original Radio Style) ---
 st.sidebar.header("🛠️ Design Choices")
 def apply_filter(df, col, label):
-    choice = st.sidebar.radio(f"{label}", ["Available", "Mandatory", "Ignored"], horizontal=True, key=f"filter_{col}")
+    choice = st.sidebar.radio(f"{label}", ["Mandatory", "Ignored"], horizontal=True, key=f"filter_{col}")
     if choice == "Mandatory": 
         return df[df[col] > 0]
     elif choice == "Ignored": 
