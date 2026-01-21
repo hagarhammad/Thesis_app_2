@@ -237,3 +237,36 @@ if 'top_10' in st.session_state:
             st.info(f)
     else:
         st.success("✅ **Balanced Performance:** No conflicts detected for this specific geometry.")
+
+    
+    # ==========================================
+    # 10. EXECUTIVE DESIGN SUMMARY
+    # ==========================================
+    st.divider()
+    st.subheader("💬 Executive Design Summary")
+    
+    # Analyze only parameters that are not excluded and have variation
+    summary_params = [p for p in params if full_df[p].max() > 0]
+    
+    if summary_params:
+        for p in summary_params:
+            # Calculate metrics for the summary
+            mean_all = full_df[p].mean()
+            mean_top = top_10[p].mean()
+            
+            # Variance check: Does the Top 10 agree on this value?
+            if full_df[p].var() > 0:
+                v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
+                direction = "higher values" if mean_top > mean_all else "lower values"
+                
+                # Assign Architectural Roles based on statistical convergence
+                if v_ratio < 0.25:
+                    role = "a **Fixed Requirement** for this performance level."
+                elif v_ratio < 0.65:
+                    role = "a **Critical Priority** with high consistency among winners."
+                else:
+                    role = "a **Flexible Feature** (multiple values work; adjust for aesthetics)."
+                
+                st.write(f"• Top designs prefer **{direction}** for **{p.replace('_',' ')}**. In this scenario, it is {role}")
+    else:
+        st.write("No active parameters to summarize. Please adjust sidebar filters.")
