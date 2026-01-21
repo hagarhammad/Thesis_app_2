@@ -175,10 +175,10 @@ if 'top_10' in st.session_state:
     if not base_case_search.empty:
         base_case = base_case_search.iloc[0]
         indicators = {
-            'sDA': col_sDA, 
-            'ASE': col_ASE, 
-            'Winter Radiation': col_heat, 
-            'Summer Radiation': col_over
+            'sDA (%)': {'col': 'sDA', 'inverse': False}, 
+            'ASE (%)': {'col': 'ASE', 'inverse': True}, 
+            'Winter Rad (kWh/m2)': {'col': 'Winter_Average_Radation_kWh/m2', 'inverse': False}, 
+            'Summer Rad (kWh/m2)': {'col': 'Summer_Average_Radation_kWh/m2', 'inverse': True}
         }
         
         # Calculate average performance of Top 10
@@ -244,3 +244,14 @@ if 'top_10' in st.session_state:
 
     # --- PERFORMANCE IMPROVEMENT FROM BASE CASE ---
     # [Paste your Base Case logic here]
+
+
+# Inside the "for p in params" loop, after the conflict detection:
+
+if (corr_thermal > 0.15 and corr_daylight < -0.15):
+    # Case: Good for Thermal, Bad for Daylight
+    st.info(f"💡 **How to fix:** To keep this {p.replace('_',' ')} without losing Daylight, try setting **Canopy** to 'Required' or decrease **Louver** depth.")
+
+elif (corr_thermal < -0.15 and corr_daylight > 0.15):
+    # Case: Good for Daylight, Bad for Thermal
+    st.info(f"💡 **How to fix:** To keep this {p.replace('_',' ')} without overheating, try setting **Vertical Steps** to 'Required' to increase self-shading.")
