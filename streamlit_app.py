@@ -25,6 +25,7 @@ st.markdown(
 # 2. GLOBAL COLUMN DEFINITIONS
 # ==========================================
 col_id = 'Cases_ID'
+col_global = 'Global_ID'  # Updated as requested
 col_heat = 'Winter_Average_Radation_kWh/m2'
 col_over = 'Summer_Average_Radation_kWh/m2'
 col_sDA = 'sDA'
@@ -46,7 +47,7 @@ df_raw = load_data()
 st.sidebar.header("Design Choices")
 
 def apply_filter(df, col, label):
-    choice = st.sidebar.radio(label, [ "Required", "Flexible", "Excluded"], horizontal=True, key=f"filter_{col}")
+    choice = st.sidebar.radio(label, ["Flexible", "Required", "Excluded"], horizontal=True, key=f"filter_{col}")
     if choice == "Required": 
         return df[df[col] > 0]
     elif choice == "Excluded": 
@@ -54,13 +55,11 @@ def apply_filter(df, col, label):
     return df
 
 df_filtered = df_raw.copy()
-df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Steps")
-df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
+df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
 df_filtered = apply_filter(df_filtered, 'Balcony_Steps', "Balcony")
 df_filtered = apply_filter(df_filtered, 'PV_Canopy_Steps', "Canopy")
-df_filtered = apply_filter(df_filtered, 'Vertical_Louvre_Steps', "Louvers")
-
-
+df_filtered = apply_filter(df_filtered, 'Vertical_Steps_Section', "Vertical Steps")
+df_filtered = apply_filter(df_filtered, 'Horizontal_Steps_Plan', "Horizontal Steps")
 
 # ==========================================
 # 5. DESIGN PRIORITIES
@@ -81,32 +80,26 @@ col_m2.metric("☀️ Daylight Importance", f"{daylight_display}%")
 
 renew_choice = st.radio("Renewable Energy Strategy:", ["Ignored", "Mandatory"], horizontal=True)
 
-# Calculation logic
 if renew_choice == "Mandatory":
-    w_renew = 0.10
-    w_energy = (slider_val / 100) * 0.90
-    w_daylight = (daylight_display / 100) * 0.90
+    w_renew, pool = 0.10, 0.90
 else:
-    w_renew = 0.0
-    w_energy = (slider_val / 100)
-    w_daylight = (daylight_display / 100)
+    w_renew, pool = 0.0, 1.0
+
+w_energy = (slider_val / 100) * pool
+w_daylight = (daylight_display / 100) * pool
 
 # ==========================================
 # 6. CALCULATION ENGINE
 # ==========================================
 if st.button("🚀 Find Top 10 Best Cases", use_container_width=True):
     df = df_filtered.copy()
-    
     if df.empty:
-        st.warning("No cases match your filter criteria. Please adjust the sidebar.")
+        st.warning("No cases match your filter criteria.")
     else:
-        # Score calculations
         s_area = df['Surface_Area'] if 'Surface_Area' in df.columns else 1.0
         df['Total_Surface'] = df['PercArea_PV_Potential'] + df['PercArea_Active_Solar_Potential']
         
         n_act = (df['Total_Surface'] - df['Total_Surface'].min()) / (df['Total_Surface'].max() - df['Total_Surface'].min() + 1e-6)
-        imbalance_mask = (df['PercArea_PV_Potential'] < 10.0) | (df['PercArea_Active_Solar_Potential'] < 10.0)
-        n_act[imbalance_mask] *= 0.5
         n_surf_inv = 1 - (s_area - s_area.min()) / (s_area.max() - s_area.min() + 1e-6)
         df['Score_Renewables'] = ((n_act * 0.5) + (n_surf_inv * 0.5)).clip(0, 1)
 
@@ -124,7 +117,7 @@ if st.button("🚀 Find Top 10 Best Cases", use_container_width=True):
         st.session_state['full_calc_df'] = df
 
 # ==========================================
-# 7. OUTPUTS
+# 7. DYNAMIC OUTPUTS
 # ==========================================
 if 'top_10' in st.session_state:
     top_10 = st.session_state['top_10']
@@ -137,23 +130,45 @@ if 'top_10' in st.session_state:
         st.subheader("🧊 3D Building Form")
         selected_id = st.selectbox("Select Case ID to visualize:", top_10[col_id])
         case_data = top_10[top_10[col_id] == selected_id].iloc[0]
+        
+        # --- DYNAMIC PERFORMANCE VS BASE CASE (Moved here) ---
+        base_case_search = df_raw[df_raw[col_id].astype(str).str.contains('Base', case=False, na=False)]
+        
+        if not base_case_search.empty:
+            base_case = base_case_search.iloc[0]
+            indicators = {
+                'sDA (%)': {'col': col_sDA, 'inv': False}, 
+                'ASE (%)': {'col': col_ASE, 'inv': True}, 
+                'Winter Rad': {'col': col_heat, 'inv': False}, 
+                'Summer Rad': {'col': col_over, 'inv': True}
+            }
+            
+            imp_cols = st.columns(4)
+            for i, (label, data) in enumerate(indicators.items()):
+                b_val, c_val = base_case[data['col']], case_data[data['col']]
+                diff_pct = ((c_val - b_val) / (b_val + 1e-6)) * 100
+                with imp_cols[i]:
+                    st.metric(label, f"{round(c_val, 1)}", f"{round(diff_pct, 1)}% vs Base", delta_color="inverse" if data['inv'] else "normal")
+        
+        # Visualize 3D
         inputs_3d = [case_data[p] for p in params]
         ui_components.display_3d_model("Type_A", inputs_3d)
 
     with col_table:
-        st.subheader("🏆 Top 10 Ranked Cases")
-        st.dataframe(top_10[[col_id, 'Final_Score', col_sDA, col_ASE]], hide_index=True)
-        st.info(f"Viewing: Case {selected_id} | Performance Score: {round(case_data['Final_Score']*100, 1)}%")
+        st.subheader("🏆 Case Schedule")
+        # Display Global_ID and Parameters for the Selected Case
+        schedule_cols = [col_global] + params + [col_sDA, col_ASE]
+        st.dataframe(top_10[schedule_cols], hide_index=True)
+        st.info(f"Viewing: Case {selected_id} (Global: {case_data[col_global]})")
 
     # ==========================================
-    # 8. STRATEGIC CONFLICT ANALYSIS & FIXES
+    # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
     # ==========================================
     st.divider()
-    st.subheader("Strategic Conflict Analysis")
-    st.info("A 'Conflict' occurs when a parameter improves one score but degrades another.")
-
-    score_cols = ['Score_Thermal', 'Score_Daylight']
-    correlation_matrix = full_df[params + score_cols].corr()
+    st.subheader("🧐 Strategic Conflict Analysis")
+    
+    # Conflict/Fix logic remains the same
+    correlation_matrix = full_df[params + ['Score_Thermal', 'Score_Daylight']].corr()
     ins_cols = st.columns(len(params))
 
     for i, p in enumerate(params):
@@ -163,62 +178,21 @@ if 'top_10' in st.session_state:
             c_daylight = correlation_matrix.loc[p, 'Score_Daylight']
             
             if (c_thermal > 0.15 and c_daylight < -0.15):
-                st.warning(" High Conflict")
-                st.caption("Helping **Thermal** but hurting **Daylight**.")
-                st.info(f"💡 **Fix:** To keep this {p.replace('_',' ')} without losing Daylight, try setting **Canopy** to 'Required' or decrease **Louver** depth.")
+                st.warning("⚠️ High Conflict")
+                st.info(f"💡 **Fix:** Set **Canopy** to 'Required' or decrease **Louver** depth.")
             elif (c_thermal < -0.15 and c_daylight > 0.15):
-                st.warning(" High Conflict")
-                st.caption("Helping **Daylight** but hurting **Thermal**.")
-                st.info(f"💡 **Fix:** To keep this {p.replace('_',' ')} without overheating, try setting **Vertical Steps** to 'Required' to increase self-shading.")
+                st.warning("⚠️ High Conflict")
+                st.info(f"💡 **Fix:** Set **Vertical Steps** to 'Required' to increase self-shading.")
             elif abs(c_thermal) > 0.3 and abs(c_daylight) > 0.3:
-                st.success(" Synergy")
-                st.caption("Benefits both goals simultaneously.")
+                st.success("🤝 Synergy")
             else:
-                st.write("Neutral")
+                st.write("⚖️ Neutral")
 
-    # ==========================================
-    # 9. PERFORMANCE vs BASE CASE
-    # ==========================================
-    st.divider()
-    st.subheader("Performance Improvement from Base Case")
-    
-    base_case_search = df_raw[df_raw[col_id].astype(str).str.contains('Base', case=False, na=False)]
-    
-    if not base_case_search.empty:
-        base_case = base_case_search.iloc[0]
-        indicators = {
-            'sDA (%)': {'col': col_sDA, 'inverse': False}, 
-            'ASE (%)': {'col': col_ASE, 'inverse': True}, 
-            'Winter Rad': {'col': col_heat, 'inverse': False}, 
-            'Summer Rad': {'col': col_over, 'inverse': True}
-        }
-        
-        top_10_avg = top_10[[d['col'] for d in indicators.values()]].mean()
-        imp_cols = st.columns(4)
-        
-        for i, (label, data) in enumerate(indicators.items()):
-            b_val = base_case[data['col']]
-            t_val = top_10_avg[data['col']]
-            diff_pct = ((t_val - b_val) / (b_val + 1e-6)) * 100
-            
-            with imp_cols[i]:
-                st.metric(
-                    label=label, value=f"{round(t_val, 1)}", 
-                    delta=f"{round(diff_pct, 1)}% vs Base",
-                    delta_color="inverse" if data['inverse'] else "normal"
-                )
-
-    # ==========================================
-    # 10. EXECUTIVE SUMMARY
-    # ==========================================
     st.divider()
     st.subheader("💬 Executive Design Summary")
     for p in params:
         mean_all, mean_top = full_df[p].mean(), top_10[p].mean()
         v_ratio = top_10[p].var() / (full_df[p].var() + 1e-6)
-        _, p_val = ks_2samp(full_df[p], top_10[p])
-        
         shift = "higher values" if mean_top > mean_all else "lower values"
         stability = "critical for performance" if v_ratio < 0.6 else "flexible for design"
-        sig = " (Significant trend)" if p_val < 0.05 else ""
-        st.write(f"• Top designs prefer **{shift}** for **{p.replace('_',' ')}**. This is **{stability}**.{sig}")
+        st.write(f"• Top designs prefer **{shift}** for **{p.replace('_',' ')}**. This is **{stability}**.")
