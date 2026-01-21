@@ -222,48 +222,47 @@ if 'top_10' in st.session_state:
                     st.caption(f"Uses less than the average top case. Favors sky visibility/light.")
 
     # ==========================================
-    # 9. DYNAMIC STRATEGIC ADJUSTMENTS (The "Fix" Logic)
+    # 9. DYNAMIC STRATEGIC ADJUSTMENTS (With Tolerance)
     # ==========================================
     st.subheader("🛠️ Case-Specific Strategic Adjustments")
     
     active_params = [p for p in params if full_df[p].max() > 0]
     
-    # Identify "Peak Performers" for benchmarking
-    best_ase_val = top_10[col_ASE].min()
-    best_sda_val = top_10[col_sDA].max()
-    best_winter_val = top_10[col_heat].max()  # Higher is better for winter
-    best_summer_val = top_10[col_over].min()  # Lower is better for summer
-    
-    # Get benchmark cases to find their "recipes"
-    best_winter_case = top_10[top_10[col_heat] == best_winter_val].iloc[0]
-    best_summer_case = top_10[top_10[col_over] == best_summer_val].iloc[0]
+    # Identify benchmarks
+    best_ase = top_10[col_ASE].min()
+    best_sda = top_10[col_sDA].max()
+    best_winter = top_10[col_heat].max()
+    best_summer = top_10[col_over].min()
     
     fixes = []
-    
-    # 1. GLARE CHECK (ASE)
-    if case_data[col_ASE] > best_ase_val:
-        fixes.append(f"⚠️ **Glare (ASE):** Higher than optimal. **Fix:** Increase *Louvers* or *Canopy Depth* to block direct high-angle sun.")
+    # Use a 10% tolerance so we don't flag minor differences
+    tolerance = 0.10 
 
-    # 2. DAYLIGHT CHECK (sDA)
-    if case_data[col_sDA] < best_sda_val:
-        fixes.append(f"☀️ **Daylight (sDA):** Lower than top-tier options. **Fix:** Reduce *Balcony* depth or *Louver* thickness to improve sky visibility.")
+    # 1. GLARE CHECK: Only flag if ASE is > 10% worse than the best winner AND > 10% absolute
+    if case_data[col_ASE] > (best_ase * (1 + tolerance)) and case_data[col_ASE] > 10:
+        fixes.append(f"⚠️ **Glare (ASE):** This case has higher glare than the top performers. **Fix:** Increase *Louvers* or *Canopy Depth*.")
 
-    # 3. WINTER RADIATION CHECK (Heating)
-    if case_data[col_heat] < best_winter_val:
-        target_v_steps = best_winter_case['Vertical_Steps_Section']
-        fixes.append(f"❄️ **Winter Heat Loss:** Low solar gain. **Fix:** Adjust *Vertical Steps* toward {target_v_steps}m to allow deeper winter sun penetration.")
+    # 2. DAYLIGHT CHECK: Only flag if sDA is > 10% lower than the best winner
+    if case_data[col_sDA] < (best_sda * (1 - tolerance)):
+        fixes.append(f"☀️ **Daylight (sDA):** This form is slightly darker than the best options. **Fix:** Reduce *Balcony* depth or *Louver* thickness.")
 
-    # 4. SUMMER RADIATION CHECK (Overheating)
-    if case_data[col_over] > best_summer_val:
-        target_canopy = best_summer_case['PV_Canopy_Steps']
-        fixes.append(f"🔥 **Summer Overheating:** High radiation detected. **Fix:** Increase *Canopy* toward {target_canopy}m or add more *Horizontal Steps* for self-shading.")
+    # 3. WINTER RAD: Only flag if it's significantly lower than the best winter case
+    if case_data[col_heat] < (best_winter * (1 - tolerance)):
+        # Find a case that did better in winter to suggest a value
+        best_w_val = top_10[top_10[col_heat] == best_winter]['Vertical_Steps_Section'].values[0]
+        fixes.append(f"❄️ **Winter Heat Gain:** Low solar gain. **Fix:** Try *Vertical Steps* closer to {best_w_val}m to allow deeper winter sun.")
+
+    # 4. SUMMER RAD: Only flag if Summer Rad is within 20% of the Base Case 
+    # (If it's already 79% better than Base, don't flag it!)
+    if case_data[col_over] > (best_summer * (1 + tolerance)) and case_data[col_over] > (base_case[col_over] * 0.5):
+        fixes.append(f"🔥 **Summer Overheating:** Could be further optimized. **Fix:** Increase *Canopy* or *Horizontal Steps*.")
 
     # DISPLAY THE FIXES
     if fixes:
         for f in fixes:
             st.info(f)
     else:
-        st.success("✅ **Peak Performance:** This specific geometry successfully balances Daylighting, Glare, and Thermal loads.")
+        st.success("✅ **Optimal Performance:** This specific geometry is performing at the top of its class across all metrics.")
     
     # ==========================================
     # 10. EXECUTIVE DESIGN SUMMARY
