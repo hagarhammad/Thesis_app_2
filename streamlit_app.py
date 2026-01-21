@@ -163,43 +163,53 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing: {case_data[col_global]} (Typology: {selected_id})")
 
     # ==========================================
-    # 8. STRATEGIC CONFLICT ANALYSIS & SUMMARY
+   # ==========================================
+    # 8. CASE-SPECIFIC STRATEGIC ANALYSIS
     # ==========================================
     st.divider()
-    st.subheader("🧐 Strategic Conflict Analysis")
+    st.subheader(f"🧐 Strategic Analysis: Case {selected_id}")
     
-    # We only analyze parameters that AREN'T excluded by the user
     active_params = [p for p in params if full_df[p].max() > 0]
     
     if active_params:
+        # 1. Calculate General Trends (Correlations)
         correlation_matrix = full_df[active_params + ['Score_Thermal', 'Score_Daylight']].corr()
+        
         ins_cols = st.columns(len(active_params))
 
         for i, p in enumerate(active_params):
             with ins_cols[i]:
                 st.markdown(f"#### {p.replace('_',' ')}")
+                
+                # A. Identify the General Conflict
                 c_thermal = correlation_matrix.loc[p, 'Score_Thermal']
                 c_daylight = correlation_matrix.loc[p, 'Score_Daylight']
+                is_conflict = (c_thermal > 0.15 and c_daylight < -0.15) or (c_thermal < -0.15 and c_daylight > 0.15)
                 
-                # Conflict Logic
-                if (c_thermal > 0.15 and c_daylight < -0.15) or (c_thermal < -0.15 and c_daylight > 0.15):
-                    st.warning("⚠️ High Conflict")
-                    
-                    # Logic to suggest a fix only if it's not already filtered
-                    if c_thermal < c_daylight: # Needs Thermal help
-                        if st.session_state.get('filter_Vertical_Steps_Section') != "Required":
-                            st.info("💡 **Fix:** Try 'Vertical Steps' to Required for self-shading.")
-                        else:
-                            st.info("💡 **Fix:** Increase 'Canopy' depth to reduce solar gain.")
-                    else: # Needs Daylight help
-                        st.info("💡 **Fix:** Reduce 'Louver' depth or check 'Balcony' overlap.")
+                # B. Look at the SPECIFIC Selected Case value
+                case_value = case_data[p]
+                mean_all = full_df[p].mean()
+                
+                # C. Provide Case-Specific Insight
+                if is_conflict:
+                    st.warning("⚖️ High-Conflict Zone")
+                    if case_value > mean_all:
+                        st.write(f"In Case {selected_id}, you chose a **higher** value. This prioritizes one goal over the other.")
+                    else:
+                        st.write(f"In Case {selected_id}, you chose a **lower** value to minimize the trade-off penalty.")
                 
                 elif abs(c_thermal) > 0.3 and abs(c_daylight) > 0.3:
-                    st.success("🤝 Synergy")
+                    st.success("🤝 Synergy Move")
+                    st.write(f"Case {selected_id} utilizes this parameter as a core performance driver.")
+                
                 else:
-                    st.write("⚖️ Neutral")
-    else:
-        st.write("Adjust filters to analyze active parameters.")
+                    st.write("⚪ Neutral Position")
+
+                # D. Mitigation Advice (The "Fix")
+                if is_conflict and c_thermal > c_daylight:
+                    st.caption("💡 *Optimization Hint:* If Daylight is too low in this specific form, reduce Louvers.")
+                elif is_conflict:
+                    st.caption("💡 *Optimization Hint:* If Overheating occurs in this form, increase Canopy depth.")
 
     # ==========================================
     # 10. EXECUTIVE SUMMARY (Fixed for Exclusions)
