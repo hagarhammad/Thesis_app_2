@@ -10,7 +10,7 @@ st.set_page_config(layout="wide", page_title="Architectural Case Finder")
 @st.cache_data
 def load_data():
     # Make sure this filename matches exactly what you uploaded to GitHub
-    df = pd.read_csv('your_data.csv')
+    df = pd.read_csv('Category_02F.csv')
     return df
 
 df_raw = load_data()
