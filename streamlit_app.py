@@ -9,17 +9,17 @@ from scipy.stats import ks_2samp
 # ==========================================
 st.set_page_config(layout="wide", page_title="Architectural Case Finder")
 
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"] {
-        min-width: 350px;
-        max-width: 350px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# st.markdown(
+#     """
+#     <style>
+#     [data-testid="stSidebar"] {
+#         min-width: 350px;
+#         max-width: 350px;
+#     }
+#     </style>
+#     """,
+#     unsafe_allow_html=True
+# )
 
 # ==========================================
 # 2. GLOBAL COLUMN DEFINITIONS
