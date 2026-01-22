@@ -158,44 +158,80 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
+    # 8. DIAGNOSTICS & ADJUSTMENTS
     # ==========================================
-# 8. PERFORMANCE DIAGNOSTICS: {selected_global}
-# ==========================================
-st.divider()
-st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
-
-top_10_means = top_10[params].mean()
-diag_cols = st.columns(len(params))
-
-for i, p in enumerate(params):
-    with diag_cols[i]:
-        st.markdown(f"#### {p.replace('_',' ')}")
-        
-        # --- THE EXCLUSION CHECK ---
-        # If the parameter was "Excluded" in the sidebar, its max value in the 
-        # current calculation pool (full_df) will be 0.
-        if full_df[p].max() == 0 and full_df[p].min() == 0:
-            st.write("⚪ **Excluded**")
-            st.caption("This design feature is currently disabled and not contributing to performance.")
-        # ---------------------------
-        
-        else:
-            case_val = case_data[p]
-            t10_avg = top_10_means[p]
-            diff = case_val - t10_avg
+    st.divider()
+    st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
+    
+    top_10_means = top_10[params].mean()
+    diag_cols = st.columns(len(params))
+    
+    for i, p in enumerate(params):
+        with diag_cols[i]:
+            st.markdown(f"#### {p.replace('_',' ')}")
             
-            if abs(diff) < 0.05:
-                st.write("⚖️ **Balanced**")
-                st.caption("Matches the optimal range of the top performers.")
-            elif diff > 0:
-                st.write("⬆️ **Aggressive**")
-                st.caption("Higher than average. Prioritizes shading over light.")
+            # --- THE EXCLUSION CHECK ---
+            # If the user excluded this in the sidebar, both max and min in top_10 will be 0
+            if top_10[p].max() == 0 and top_10[p].min() == 0:
+                st.write("⚪ **Not Used**")
+                st.caption("This feature is excluded from the current design strategy.")
             else:
-                st.write("⬇️ **Conservative**")
-                st.caption("Lower than average. Favors maximum light penetration.")
+                case_val, t10_avg = case_data[p], top_10_means[p]
+                diff = case_val - t10_avg
+                
+                if abs(diff) < 0.05: 
+                    st.write("⚖️ **Balanced**")
+                    st.caption("Matches optimal range.")
+                elif diff > 0: 
+                    st.write("⬆️ **Aggressive**")
+                    st.caption("Greater than average.")
+                else: 
+                    st.write("⬇️ **Conservative**")
+                    st.caption("Lower than average.")
 
     # ==========================================
-    # 9. EXECUTIVE SUMMARY
+    # 9. STRATEGIC FIXES (With Thermal & Directional Logic)
+    # ==========================================
+    st.subheader("🛠️ Strategic Adjustments")
+    fixes = []
+    tol = 0.10
+    
+    # Benchmarks for comparison
+    best_ase = top_10[col_ASE].min()
+    best_sda = top_10[col_sDA].max()
+    best_winter = top_10[col_heat].max()
+    best_summer = top_10[col_over].min()
+
+    # 1. Glare Check
+    if case_data[col_ASE] > (best_ase * (1 + tol)) and case_data[col_ASE] > 10:
+        fixes.append("⚠️ **Glare (ASE):** High levels detected. **Fix:** Increase *Louvers* or *Canopy* depth.")
+    
+    # 2. Daylight Check
+    if case_data[col_sDA] < (best_sda * (1 - tol)):
+        fixes.append("☀️ **Daylight (sDA):** Form is slightly dark. **Fix:** Reduce *Balcony* depth or *Louver* thickness.")
+
+    # 3. Winter Heat gain (Using Recession vs Overhang Logic)
+    if case_data[col_heat] < (best_winter * (1 - tol)):
+        # Find if the best winter case uses positive or negative steps
+        best_w_val = top_10[top_10[col_heat] == best_winter]['Vertical_Steps_Section'].values[0]
+        step_type = "Overhang (+)" if best_w_val > 0 else "Recession (-)"
+        fixes.append(f"❄️ **Winter Gain:** Low. Top performers use **{step_type}** steps (~{best_w_val}m).")
+
+    # 4. Summer Heat gain
+    if case_data[col_over] > (best_summer * (1 + tol)) and case_data[col_over] > (base_case[col_over] * 0.5):
+        best_s_val = top_10[top_10[col_over] == best_summer]['Vertical_Steps_Section'].values[0]
+        step_type = "Overhang (+)" if best_s_val > 0 else "Recession (-)"
+        fixes.append(f"🔥 **Summer Heat:** High radiation. Try **{step_type}** steps (~{best_s_val}m).")
+    
+    # Display Fixes
+    if fixes:
+        for f in fixes:
+            st.info(f)
+    else:
+        st.success("✅ **Optimal Geometry:** This case manages performance conflicts effectively.")
+
+    # ==========================================
+    # 10. EXECUTIVE SUMMARY
     # ==========================================
     st.divider()
     st.subheader("💬 Design Freedom")
