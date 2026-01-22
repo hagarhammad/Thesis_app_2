@@ -137,7 +137,7 @@ if 'top_10' in st.session_state:
     col_viz, col_table = st.columns([2, 1])
     
     with col_viz:
-        st.subheader("🧊 3D Building Form")
+        st.subheader(" 3D Building Form")
         selected_global = st.selectbox("Select Building (Global ID):", top_10[col_global])
         case_data = top_10[top_10[col_global] == selected_global].iloc[0]
         
@@ -163,7 +163,7 @@ if 'top_10' in st.session_state:
     # ==========================================
     # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (CLEAN UI)
     # ==========================================
-    st.subheader(f"🧐 Strategic Synergy: {selected_global}")
+    st.subheader(f" Sensitivity analysis: {selected_global}")
     
     pretty_names = {
         'Vertical_Steps_Section': 'Vr Steps',
@@ -227,7 +227,7 @@ if 'top_10' in st.session_state:
     # ==========================================
     # 9. STRATEGIC ADJUSTMENTS (FINAL)
     # ==========================================
-    st.subheader("🛠️ Strategic Adjustments")
+    st.subheader(" Strategic Adjustments")
     
     fixes = []
     
@@ -268,7 +268,7 @@ if 'top_10' in st.session_state:
     # ==========================================
     # 10. DESIGN FREEDOM (FINAL)
     # ==========================================
-    st.subheader("💬 Design Freedom")
+    st.subheader(" Design Freedom")
     
     for p in params:
     
