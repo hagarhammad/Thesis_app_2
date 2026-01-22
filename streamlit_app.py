@@ -159,16 +159,32 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
-    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (ROBUST)
+    # ==========================================
+    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (FINAL)
     # ==========================================
     st.subheader(f"🧐 Strategic Synergy: {selected_global}")
     
-    # Safe correlation computation
+    # Pretty names for architectural clarity
+    pretty_names = {
+        'Vertical_Steps_Section': 'Vertical Steps',
+        'Horizontal_Steps_Plan': 'Horizontal Steps',
+        'Balcony_Steps': 'Balcony',
+        'PV_Canopy_Steps': 'Canopy Depth',
+        'Vertical_Louvre_Steps': 'Louver Extrusion'
+    }
+    
+    # Detect excluded parameters (all zeros after filtering)
+    excluded_params = [
+        p for p in params
+        if df_filtered[p].nunique() == 1 and df_filtered[p].iloc[0] == 0
+    ]
+    
+    # Safe correlation
     def safe_corr(a, b):
         if a.nunique() < 2 or b.nunique() < 2:
             return 0.0
-        corr = a.corr(b)
-        return 0.0 if pd.isna(corr) else corr
+        c = a.corr(b)
+        return 0.0 if pd.isna(c) else c
     
     influence = {p: safe_corr(full_df[p], full_df['Final_Score']) for p in params}
     
@@ -176,40 +192,52 @@ if 'top_10' in st.session_state:
     
     for i, p in enumerate(params):
         with diag_cols[i]:
-            st.markdown(f"#### {p.replace('_',' ')}")
+            st.markdown(f"#### {pretty_names[p]}")
+    
+            # If excluded → skip analysis
+            if p in excluded_params:
+                st.write("⚪ **Excluded from design — not evaluated.**")
+                continue
     
             corr = influence[p]
-            direction = "Positive" if corr > 0 else "Negative"
             strength = abs(corr)
+            direction = "Positive" if corr > 0 else "Negative"
     
             st.write(f"**Influence:** {direction} ({strength:.2f})")
     
+            # Strength classification
             if strength < 0.15:
                 st.caption("Minimal impact on performance.")
+                st.write("No adjustment recommended.")
+                continue
             elif strength < 0.35:
                 st.caption("Moderate influence on performance.")
             else:
                 st.caption("Strong driver of performance.")
     
+            # Directional guidance
             current_val = case_data[p] if pd.notna(case_data[p]) else 0
             avg_val = full_df[p].mean()
     
-            if corr > 0 and current_val < avg_val:
-                st.info("Raising this parameter tends to improve performance.")
-            elif corr < 0 and current_val > avg_val:
-                st.info("Lowering this parameter tends to improve performance.")
+            if corr > 0:
+                if current_val < avg_val:
+                    st.info("Higher values tend to improve performance.")
+                else:
+                    st.success("This parameter supports performance.")
             else:
-                st.success("This parameter is aligned with high-performing trends.")
+                if current_val > avg_val:
+                    st.info("Lower values tend to improve performance.")
+                else:
+                    st.success("This parameter supports performance.")
     
     
     # ==========================================
-    # 9. STRATEGIC ADJUSTMENTS (ROBUST)
+    # 9. STRATEGIC ADJUSTMENTS (FINAL)
     # ==========================================
     st.subheader("🛠️ Strategic Adjustments")
     
     fixes = []
     
-    # Numeric-only quantiles
     numeric_df = full_df.select_dtypes(include=[np.number])
     p25 = numeric_df.quantile(0.25)
     p75 = numeric_df.quantile(0.75)
@@ -217,17 +245,17 @@ if 'top_10' in st.session_state:
     def safe_compare(val, threshold):
         return pd.notna(val) and pd.notna(threshold)
     
-    # ASE – glare risk
+    # ASE – glare
     if safe_compare(case_data[col_ASE], p75.get(col_ASE, None)):
         if case_data[col_ASE] > p75[col_ASE]:
-            fixes.append("High **ASE** indicates potential glare. Consider increasing shading depth or louver density.")
+            fixes.append("High **ASE** indicates potential glare. Consider deeper shading or denser louvers.")
     
-    # sDA – daylight sufficiency
+    # sDA – daylight
     if safe_compare(case_data[col_sDA], p25.get(col_sDA, None)):
         if case_data[col_sDA] < p25[col_sDA]:
             fixes.append("Low **sDA** suggests insufficient daylight. Reducing balcony depth or adjusting façade geometry may help.")
     
-    # Winter radiation – solar gain
+    # Winter radiation – passive gain
     if safe_compare(case_data[col_heat], p25.get(col_heat, None)):
         if case_data[col_heat] < p25[col_heat]:
             fixes.append("Low winter solar exposure. Increasing façade protrusions or adjusting step geometry may improve passive gains.")
@@ -245,14 +273,20 @@ if 'top_10' in st.session_state:
     
     
     # ==========================================
-    # 10. EXECUTIVE SUMMARY (ROBUST)
+    # 10. DESIGN FREEDOM (FINAL)
     # ==========================================
     st.subheader("💬 Design Freedom")
     
     for p in params:
-        # If top_10 has <2 unique values → no variation
+    
+        # Excluded parameters → special message
+        if p in excluded_params:
+            st.write(f"**{pretty_names[p]}** | ⚪ Excluded from design — no freedom analysis.")
+            continue
+    
+        # If no variation → constrained
         if top_10[p].nunique() < 2 or full_df[p].nunique() < 2:
-            st.write(f"**{p}** | 🔴 Limited flexibility — parameter shows almost no variation.")
+            st.write(f"**{pretty_names[p]}** | 🔴 Limited flexibility — parameter shows almost no variation.")
             continue
     
         top_iqr = top_10[p].quantile(0.75) - top_10[p].quantile(0.25)
@@ -264,8 +298,8 @@ if 'top_10' in st.session_state:
             ratio = top_iqr / (full_iqr + 1e-6)
     
         if ratio < 0.25:
-            st.write(f"**{p}** | 🔴 Limited flexibility — top performers converge tightly.")
+            st.write(f"**{pretty_names[p]}** | 🔴 Limited flexibility — top performers converge tightly.")
         elif ratio < 0.60:
-            st.write(f"**{p}** | 🟡 Moderate flexibility — controlled variation among top cases.")
+            st.write(f"**{pretty_names[p]}** | 🟡 Moderate flexibility — controlled variation among top cases.")
         else:
-            st.write(f"**{p}** | 🟢 High flexibility — wide range of successful configurations.")
+            st.write(f"**{pretty_names[p]}** | 🟢 High flexibility — wide range of successful configurations.")
