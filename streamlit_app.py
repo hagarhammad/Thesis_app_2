@@ -159,14 +159,18 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
-    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS
+    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (ROBUST)
     # ==========================================
     st.subheader(f"🧐 Strategic Synergy: {selected_global}")
-    # Compute parameter influence using correlation with Final_Score
-    influence = {}
-    for p in params:
-        corr = full_df[p].corr(full_df['Final_Score'])
-        influence[p] = corr
+    
+    # Safe correlation computation
+    def safe_corr(a, b):
+        if a.nunique() < 2 or b.nunique() < 2:
+            return 0.0
+        corr = a.corr(b)
+        return 0.0 if pd.isna(corr) else corr
+    
+    influence = {p: safe_corr(full_df[p], full_df['Final_Score']) for p in params}
     
     diag_cols = st.columns(len(params))
     
@@ -187,7 +191,7 @@ if 'top_10' in st.session_state:
             else:
                 st.caption("Strong driver of performance.")
     
-            current_val = case_data[p]
+            current_val = case_data[p] if pd.notna(case_data[p]) else 0
             avg_val = full_df[p].mean()
     
             if corr > 0 and current_val < avg_val:
@@ -196,50 +200,68 @@ if 'top_10' in st.session_state:
                 st.info("Lowering this parameter tends to improve performance.")
             else:
                 st.success("This parameter is aligned with high-performing trends.")
-
+    
+    
     # ==========================================
-    # 9. STRATEGIC FIXES (Original Directional Logic)
+    # 9. STRATEGIC ADJUSTMENTS (ROBUST)
     # ==========================================
     st.subheader("🛠️ Strategic Adjustments")
-
+    
     fixes = []
-
-    # Compute percentiles for objective thresholds
-    p25 = full_df.quantile(0.25)
-    p75 = full_df.quantile(0.75)
-
+    
+    # Numeric-only quantiles
+    numeric_df = full_df.select_dtypes(include=[np.number])
+    p25 = numeric_df.quantile(0.25)
+    p75 = numeric_df.quantile(0.75)
+    
+    def safe_compare(val, threshold):
+        return pd.notna(val) and pd.notna(threshold)
+    
     # ASE – glare risk
-    if case_data[col_ASE] > p75[col_ASE]:
-        fixes.append("High **ASE** indicates potential glare. Consider increasing shading depth or louver density.")
+    if safe_compare(case_data[col_ASE], p75.get(col_ASE, None)):
+        if case_data[col_ASE] > p75[col_ASE]:
+            fixes.append("High **ASE** indicates potential glare. Consider increasing shading depth or louver density.")
     
     # sDA – daylight sufficiency
-    if case_data[col_sDA] < p25[col_sDA]:
-        fixes.append("Low **sDA** suggests insufficient daylight. Reducing balcony depth or adjusting façade geometry may help.")
+    if safe_compare(case_data[col_sDA], p25.get(col_sDA, None)):
+        if case_data[col_sDA] < p25[col_sDA]:
+            fixes.append("Low **sDA** suggests insufficient daylight. Reducing balcony depth or adjusting façade geometry may help.")
     
     # Winter radiation – solar gain
-    if case_data[col_heat] < p25[col_heat]:
-        fixes.append("Low winter solar exposure. Increasing façade protrusions or adjusting step geometry may improve passive gains.")
+    if safe_compare(case_data[col_heat], p25.get(col_heat, None)):
+        if case_data[col_heat] < p25[col_heat]:
+            fixes.append("Low winter solar exposure. Increasing façade protrusions or adjusting step geometry may improve passive gains.")
     
     # Summer radiation – overheating
-    if case_data[col_over] > p75[col_over]:
-        fixes.append("High summer radiation. Enhanced shading or deeper overhangs can reduce overheating risk.")
+    if safe_compare(case_data[col_over], p75.get(col_over, None)):
+        if case_data[col_over] > p75[col_over]:
+            fixes.append("High summer radiation. Enhanced shading or deeper overhangs can reduce overheating risk.")
     
     if fixes:
         for f in fixes:
             st.info(f)
     else:
         st.success("Performance indicators fall within balanced percentile ranges.")
-
+    
+    
     # ==========================================
-    # 10. EXECUTIVE SUMMARY
+    # 10. EXECUTIVE SUMMARY (ROBUST)
     # ==========================================
     st.subheader("💬 Design Freedom")
-
+    
     for p in params:
+        # If top_10 has <2 unique values → no variation
+        if top_10[p].nunique() < 2 or full_df[p].nunique() < 2:
+            st.write(f"**{p}** | 🔴 Limited flexibility — parameter shows almost no variation.")
+            continue
+    
         top_iqr = top_10[p].quantile(0.75) - top_10[p].quantile(0.25)
         full_iqr = full_df[p].quantile(0.75) - full_df[p].quantile(0.25)
     
-        ratio = top_iqr / (full_iqr + 1e-6)
+        if full_iqr == 0 or pd.isna(full_iqr):
+            ratio = 0
+        else:
+            ratio = top_iqr / (full_iqr + 1e-6)
     
         if ratio < 0.25:
             st.write(f"**{p}** | 🔴 Limited flexibility — top performers converge tightly.")
