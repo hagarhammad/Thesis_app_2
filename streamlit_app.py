@@ -160,16 +160,17 @@ if 'top_10' in st.session_state:
 
     # ==========================================
     # ==========================================
-    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (ALIGNED COLUMNS)
+    # ==========================================
+    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (CLEAN UI)
     # ==========================================
     st.subheader(f"🧐 Strategic Synergy: {selected_global}")
     
     pretty_names = {
-        'Vertical_Steps_Section': 'Vertical Steps',
-        'Horizontal_Steps_Plan': 'Horizontal Steps',
+        'Vertical_Steps_Section': 'Vr Steps',
+        'Horizontal_Steps_Plan': 'Hz Steps',
         'Balcony_Steps': 'Balcony',
         'PV_Canopy_Steps': 'Canopy Depth',
-        'Vertical_Louvre_Steps': 'Louver Extrusion'
+        'Vertical_Louvre_Steps': 'Louver Depth'
     }
     
     excluded_params = [
@@ -185,53 +186,43 @@ if 'top_10' in st.session_state:
     
     influence = {p: safe_corr(full_df[p], full_df['Final_Score']) for p in params}
     
-    cols = st.columns(len(params))
+    diag_cols = st.columns(len(params))
     
     for i, p in enumerate(params):
-        with cols[i]:
-            st.markdown(f"### {pretty_names[p]}")
+        with diag_cols[i]:
+            st.markdown(f"#### {pretty_names[p]}")
     
-            # Excluded → fixed-height block
+            # Excluded → skip
             if p in excluded_params:
-                st.write("**Influence:** —")
-                st.write("⚪ **Excluded**")
-                st.write(" ")  # spacer for alignment
-                st.write(" ")  # spacer for alignment
+                st.write("⚪ **Excluded from design**")
                 continue
     
             corr = influence[p]
             strength = abs(corr)
             direction = "Positive" if corr > 0 else "Negative"
     
-            # Influence value (always 1 line)
+            # Influence value
             st.write(f"**Influence:** {direction} ({strength:.2f})")
     
-            # Strength bubble (always 1 line)
+            # Strength bubble
             if strength < 0.15:
                 st.write("🟤 **Minimal Influence**")
-                # No directional advice → add blank lines to align
-                st.write(" ")
-                st.write(" ")
                 continue
             elif strength < 0.35:
                 st.write("🟡 **Moderate Influence**")
             else:
                 st.write("🟢 **Strong Influence**")
     
-            # Directional advice (always 1 line)
+            # Directional guidance (no redundant “supports performance”)
             current_val = case_data[p] if pd.notna(case_data[p]) else 0
             avg_val = full_df[p].mean()
     
             if corr > 0:
                 if current_val < avg_val:
-                    st.info("⬆ Increase to improve performance.")
-                else:
-                    st.info(" ")
+                    st.info("⬆ Increasing this parameter tends to improve performance.")
             else:
                 if current_val > avg_val:
-                    st.info("⬇ Decrease to improve performance.")
-                else:
-                    st.info(" ")
+                    st.info("⬇ Decreasing this parameter tends to improve performance.")
         
     # ==========================================
     # 9. STRATEGIC ADJUSTMENTS (FINAL)
