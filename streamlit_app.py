@@ -159,7 +159,8 @@ if 'top_10' in st.session_state:
     with col_table:
         st.subheader("🏆 Case Schedule")
         st.dataframe(top_10[[col_global] + params], hide_index=True)
-
+        
+        st.info(f"Viewing: {selected_global} (Typology: {current_id})")
     # ==========================================
     # 8. PERFORMANCE DIAGNOSTICS: {selected_global}
     # ==========================================
