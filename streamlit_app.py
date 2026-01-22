@@ -158,43 +158,51 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
-    # 8. DIAGNOSTICS & ADJUSTMENTS
-    st.subheader(f"🧐 Strategic Synergy: {selected_global}")
+# 8. DYNAMIC PERFORMANCE DIAGNOSTICS
+# ==========================================
+st.subheader(f"🧐 Strategic Synergy: {selected_global}")
 
+# Determine the primary goal label based on the slider
+primary_goal = "Energy Efficiency" if slider_val > 50 else "Daylight Maximization"
+if slider_val == 50: primary_goal = "Balanced Performance"
 
-    param_impact = {}
-    for p in params:
-        top_avg = top_10[p].mean()
-        global_avg = df[p].mean()
-        # If top performers have LOWER values than global, the "Goal" is to decrease it.
-        param_impact[p] = "DECREASE" if top_avg < global_avg else "INCREASE"
-
-    diag_cols = st.columns(len(params))
-
-    for i, p in enumerate(params):
-        with diag_cols[i]:
-            st.markdown(f"#### {p.replace('_',' ')}")
-        
-            current_val = case_data[p]
-            target_dir = param_impact[p]
-            global_avg = df[p].mean()
-        
-            # Check if the user is following the 'Success Direction'
-            is_correct_dir = (target_dir == "INCREASE" and current_val > global_avg) or \
-                             (target_dir == "DECREASE" and current_val < global_avg)
-        
-            if is_correct_dir:
-                st.write("🤝 **Synergy**")
-                st.caption(f"This setting aligns with **100% Energy** goals. It is effectively reducing load.")
-            else:
-                st.write("⚔️ **Conflict**")
-                st.caption(f"This setting fights your Energy goal. Reduce this to prioritize efficiency.")
-
-            # Add a "Conflict Warning" if two specific params are fighting
-            # Example: Louvers vs. Window Size
-            if p == "Louver_Depth" and current_val > global_avg and case_data["Window_Size"] > global_avg:
-                st.warning("⚠️ **Thermal Conflict:** High glass + deep louvers. Better to reduce glass than to 'mask' it with deep louvers.")
+param_impact = {}
+for p in params:
+    # We compare the Top 10 (who are already optimized for the slider) 
+    # against the Global Average to see what 'Success' looks like for this specific balance.
+    top_avg = top_10[p].mean()
+    global_avg = full_df[p].mean()
     
+    # Impact Direction: Are the winners using MORE or LESS of this than average?
+    param_impact[p] = "INCREASE" if top_avg > global_avg else "DECREASE"
+
+diag_cols = st.columns(len(params))
+
+for i, p in enumerate(params):
+    with diag_cols[i]:
+        st.markdown(f"#### {p.replace('_',' ')}")
+        
+        current_val = case_data[p]
+        target_dir = param_impact[p]
+        global_avg = full_df[p].mean()
+        
+        # Check if the current case is moving in the same direction as the Top 10
+        is_aligned = (target_dir == "INCREASE" and current_val >= global_avg) or \
+                     (target_dir == "DECREASE" and current_val <= global_avg)
+        
+        if is_aligned:
+            st.write("🤝 **Synergy**")
+            st.caption(f"Setting aligns with **{primary_goal}**.")
+        else:
+            st.write("⚔️ **Conflict**")
+            st.caption(f"This setting hinders your **{primary_goal}** priority.")
+
+        # Logic for the specific trade-off
+        if target_dir == "INCREASE":
+            st.info(f"💡 Winners use **higher** {p.replace('_',' ')} for this balance.")
+        else:
+            st.info(f"💡 Winners use **lower** {p.replace('_',' ')} for this balance.")
+            
     # ==========================================
     # 9. STRATEGIC FIXES (With Thermal & Directional Logic)
     # ==========================================
