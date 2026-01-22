@@ -26,6 +26,7 @@ st.markdown(
 # ==========================================
 col_id = 'Cases_ID'
 col_global = 'Global_ID'
+cases = 'Cases'
 col_heat = 'Winter_Average_Radation_kWh/m2'
 col_over = 'Summer_Average_Radation_kWh/m2'
 col_sDA = 'sDA'
@@ -158,7 +159,7 @@ if 'top_10' in st.session_state:
 
     with col_table:
         st.subheader("🏆 Case Schedule")
-        st.dataframe(top_10[[col_global] + params], hide_index=True)
+        st.dataframe(top_10[[col_global] + top_10[[cases] + params], hide_index=True)
         
         selected_case_id = case_data[col_id]
         st.info(f"Viewing: {selected_global} (Typology: {selected_case_id})")
