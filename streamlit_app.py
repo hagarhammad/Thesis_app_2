@@ -159,35 +159,43 @@ if 'top_10' in st.session_state:
 
     # ==========================================
     # 8. DIAGNOSTICS & ADJUSTMENTS
-    # ==========================================
-    st.divider()
-    st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
-    
-    top_10_means = top_10[params].mean()
-    diag_cols = st.columns(len(params))
-    
-    for i, p in enumerate(params):
-        with diag_cols[i]:
-            st.markdown(f"#### {p.replace('_',' ')}")
-            
-            # --- THE EXCLUSION CHECK ---
-            # If the user excluded this in the sidebar, both max and min in top_10 will be 0
-            if top_10[p].max() == 0 and top_10[p].min() == 0:
-                st.write("⚪ **Not Used**")
-                st.caption("This feature is excluded from the current design strategy.")
-            else:
-                case_val, t10_avg = case_data[p], top_10_means[p]
-                diff = case_val - t10_avg
-                
-                if abs(diff) < 0.05: 
-                    st.write("⚖️ **Balanced**")
-                    st.caption("Matches optimal range.")
-                elif diff > 0: 
-                    st.write("⬆️ **Aggressive**")
-                    st.caption("Greater than average.")
-                else: 
-                    st.write("⬇️ **Conservative**")
-                    st.caption("Lower than average.")
+    st.subheader(f"🧐 Strategic Synergy: {selected_global}")
+
+# 1. Identify the 'Success Direction' from Top 10
+# For Energy/Heat Gain, lower is usually better. 
+# We check if the Top 10 have higher or lower values than the Global Average.
+param_impact = {}
+for p in params:
+    top_avg = top_10[p].mean()
+    global_avg = df[p].mean()
+    # If top performers have LOWER values than global, the "Goal" is to decrease it.
+    param_impact[p] = "DECREASE" if top_avg < global_avg else "INCREASE"
+
+diag_cols = st.columns(len(params))
+
+for i, p in enumerate(params):
+    with diag_cols[i]:
+        st.markdown(f"#### {p.replace('_',' ')}")
+        
+        current_val = case_data[p]
+        target_dir = param_impact[p]
+        global_avg = df[p].mean()
+        
+        # Check if the user is following the 'Success Direction'
+        is_correct_dir = (target_dir == "INCREASE" and current_val > global_avg) or \
+                         (target_dir == "DECREASE" and current_val < global_avg)
+        
+        if is_correct_dir:
+            st.write("🤝 **Synergy**")
+            st.caption(f"This setting aligns with **100% Energy** goals. It is effectively reducing load.")
+        else:
+            st.write("⚔️ **Conflict**")
+            st.caption(f"This setting fights your Energy goal. Reduce this to prioritize efficiency.")
+
+        # Add a "Conflict Warning" if two specific params are fighting
+        # Example: Louvers vs. Window Size
+        if p == "Louver_Depth" and current_val > global_avg and case_data["Window_Size"] > global_avg:
+            st.warning("⚠️ **Thermal Conflict:** High glass + deep louvers. Better to reduce glass than to 'mask' it with deep louvers.")
 
     # ==========================================
     # 9. STRATEGIC FIXES (With Thermal & Directional Logic)
