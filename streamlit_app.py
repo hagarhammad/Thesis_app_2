@@ -48,7 +48,7 @@ df_raw = load_data()
 st.sidebar.header("Design Choices")
 
 def apply_filter(df, col, label):
-    choice = st.sidebar.radio(label, ["Flexible", "Required", "Excluded"], horizontal=True, key=f"filter_{col}")
+    choice = st.sidebar.radio(label, ["Required", "Flexible", "Excluded"], horizontal=True, key=f"filter_{col}")
     if choice == "Required": 
         # "Required" means the value is NOT zero (could be positive overhang or negative recession)
         return df[df[col] != 0]
@@ -80,10 +80,10 @@ col_m2.metric("☀️ Daylight Importance", f"{daylight_display}%")
 renew_choice = st.radio("Renewable Energy Strategy:", ["Ignored", "Mandatory"], horizontal=True)
 
 # ==========================================
-# 6. CALCULATION ENGINE
+# 6. CALCULATION ENGINE (With Unique Binary Signature Logic)
 # ==========================================
 if st.button("🚀 Find Best Cases", use_container_width=True):
-    # Weighting Logic (Internal 10% for Renewables)
+    # Weighting Logic
     if renew_choice == "Mandatory":
         w_renew, pool = 0.10, 0.90
     else:
@@ -96,30 +96,41 @@ if st.button("🚀 Find Best Cases", use_container_width=True):
     if df.empty:
         st.warning("No cases match your filter criteria.")
     else:
-        # A. Normalization (0 to 1)
-        # Renewable Score
+        # A. Score Calculations (Normalization)
         df['Total_Surface'] = df['PercArea_PV_Potential'] + df['PercArea_Active_Solar_Potential']
         n_act = (df['Total_Surface'] - df['Total_Surface'].min()) / (df['Total_Surface'].max() - df['Total_Surface'].min() + 1e-6)
         df['Score_Renewables'] = n_act.clip(0, 1)
 
-        # Thermal Score (Winter max, Summer min)
         n_heat = (df[col_heat] - df[col_heat].min()) / (df[col_heat].max() - df[col_heat].min() + 1e-6)
         n_over = 1 - (df[col_over] - df[col_over].min()) / (df[col_over].max() - df[col_over].min() + 1e-6)
         df['Score_Thermal'] = (n_heat * 0.5) + (n_over * 0.5)
 
-        # Daylight Score (sDA max, ASE min)
         n_sda = (df[col_sDA] - df[col_sDA].min()) / (df[col_sDA].max() - df[col_sDA].min() + 1e-6)
         n_ase = 1 - (df[col_ASE] - df[col_ASE].min()) / (df[col_ASE].max() - df[col_ASE].min() + 1e-6)
         df['Score_Daylight'] = (n_sda * 0.5) + (n_ase * 0.5)
 
-        # Apply Weighted Final Score
+        # B. Calculate Final Weighted Score
         df['Final_Score'] = (df['Score_Renewables'] * w_renew) + \
                             (df['Score_Thermal'] * current_w_energy) + \
                             (df['Score_Daylight'] * current_w_daylight)
 
-        st.session_state['top_10'] = df.sort_values('Final_Score', ascending=False).head(10)
+        # C. BINARY SIGNATURE LOGIC (Your Request)
+        # Create a pattern based on which components are present (1) or absent (0)
+        # If a user 'Excludes' a param, it is already 0 in df_filtered, so the signature handles it.
+        df['binary_signature'] = df[params].apply(lambda row: tuple(1 if x != 0 else 0 for x in row), axis=1)
+
+        # Sort by Final Score (Best first)
+        df = df.sort_values(by='Final_Score', ascending=False)
+
+        # D. DROP DUPLICATE STRATEGIES
+        # This ensures we get the best case for 10 DIFFERENT architectural patterns
+        top_df = df.drop_duplicates(subset=['binary_signature'], keep='first').head(10)
+        
+        # Save to session state
+        st.session_state['top_10'] = top_df
         st.session_state['full_calc_df'] = df
-        st.success(f"Optimized with: {round(current_w_energy*100)}% Energy / {round(current_w_daylight*100)}% Daylight")
+        
+        st.success(f"Displaying 10 unique architectural patterns optimized for your criteria.")
 
 # ==========================================
 # 7. DYNAMIC OUTPUTS (Global ID focus)
