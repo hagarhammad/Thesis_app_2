@@ -160,11 +160,11 @@ if 'top_10' in st.session_state:
 
     # ==========================================
     # ==========================================
-    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (FINAL)
+    # ==========================================
+    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (CLEAN UI)
     # ==========================================
     st.subheader(f"🧐 Strategic Synergy: {selected_global}")
     
-    # Pretty names for architectural clarity
     pretty_names = {
         'Vertical_Steps_Section': 'Vertical Steps',
         'Horizontal_Steps_Plan': 'Horizontal Steps',
@@ -173,13 +173,11 @@ if 'top_10' in st.session_state:
         'Vertical_Louvre_Steps': 'Louver Extrusion'
     }
     
-    # Detect excluded parameters (all zeros after filtering)
     excluded_params = [
         p for p in params
         if df_filtered[p].nunique() == 1 and df_filtered[p].iloc[0] == 0
     ]
     
-    # Safe correlation
     def safe_corr(a, b):
         if a.nunique() < 2 or b.nunique() < 2:
             return 0.0
@@ -194,42 +192,37 @@ if 'top_10' in st.session_state:
         with diag_cols[i]:
             st.markdown(f"#### {pretty_names[p]}")
     
-            # If excluded → skip analysis
+            # Excluded → skip
             if p in excluded_params:
-                st.write("⚪ **Excluded from design — not evaluated.**")
+                st.write("⚪ **Excluded from design**")
                 continue
     
             corr = influence[p]
             strength = abs(corr)
             direction = "Positive" if corr > 0 else "Negative"
     
+            # Influence value
             st.write(f"**Influence:** {direction} ({strength:.2f})")
     
-            # Strength classification
+            # Strength bubble
             if strength < 0.15:
-                st.caption("Minimal impact on performance.")
-                st.write("No adjustment recommended.")
+                st.write("🟤 **Minimal Influence**")
                 continue
             elif strength < 0.35:
-                st.caption("Moderate influence on performance.")
+                st.write("🟡 **Moderate Influence**")
             else:
-                st.caption("Strong driver of performance.")
+                st.write("🟢 **Strong Influence**")
     
-            # Directional guidance
+            # Directional guidance (no redundant “supports performance”)
             current_val = case_data[p] if pd.notna(case_data[p]) else 0
             avg_val = full_df[p].mean()
     
             if corr > 0:
                 if current_val < avg_val:
-                    st.info("Higher values tend to improve performance.")
-                else:
-                    st.success("This parameter supports performance.")
+                    st.info("⬆ Increasing this parameter tends to improve performance.")
             else:
                 if current_val > avg_val:
-                    st.info("Lower values tend to improve performance.")
-                else:
-                    st.success("This parameter supports performance.")
-    
+                    st.info("⬇ Decreasing this parameter tends to improve performance.")
     
     # ==========================================
     # 9. STRATEGIC ADJUSTMENTS (FINAL)
