@@ -220,7 +220,7 @@ if 'top_10' in st.session_state:
     # 4. Summer Heat gain
     if case_data[col_over] > (best_summer * (1 + tol)) and case_data[col_over] > (base_case[col_over] * 0.5):
         best_s_val = top_10[top_10[col_over] == best_summer]['Vertical_Steps_Section'].values[0]
-        step_type = "Overhang (+)" if best_s_val > 0 else "Recession (-)"
+        step_type = "Overhang" if best_s_val > 0 else "Recession"
         fixes.append(f"🔥 **Summer Heat:** High radiation. Try **{step_type}** steps (~{best_s_val}m).")
     
     # Display Fixes
