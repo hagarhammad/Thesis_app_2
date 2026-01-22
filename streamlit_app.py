@@ -80,57 +80,74 @@ col_m2.metric("☀️ Daylight Importance", f"{daylight_display}%")
 renew_choice = st.radio("Renewable Energy Strategy:", ["Ignored", "Mandatory"], horizontal=True)
 
 # ==========================================
-# 6. CALCULATION ENGINE (With Unique Binary Signature Logic)
+# 6. CALCULATION ENGINE (High-Precision Pareto & Binary)
 # ==========================================
 if st.button("🚀 Find Best Cases", use_container_width=True):
-    # Weighting Logic
+    # 1. WEIGHTING POOL (Renewable Logic)
     if renew_choice == "Mandatory":
         w_renew, pool = 0.10, 0.90
     else:
         w_renew, pool = 0.0, 1.0
 
-    current_w_energy = (slider_val / 100) * pool
-    current_w_daylight = (daylight_display / 100) * pool
+    # User's Global Balance (Thermal vs. Daylight)
+    global_w_energy = (slider_val / 100) * pool
+    global_w_daylight = (daylight_display / 100) * pool
     
     df = df_filtered.copy()
     if df.empty:
         st.warning("No cases match your filter criteria.")
     else:
-        # A. Score Calculations (Normalization)
+        # --- A. RENEWABLES SCORE (10% or 0%) ---
         df['Total_Surface'] = df['PercArea_PV_Potential'] + df['PercArea_Active_Solar_Potential']
-        n_act = (df['Total_Surface'] - df['Total_Surface'].min()) / (df['Total_Surface'].max() - df['Total_Surface'].min() + 1e-6)
-        df['Score_Renewables'] = n_act.clip(0, 1)
+        n_renew = (df['Total_Surface'] - df['Total_Surface'].min()) / (df['Total_Surface'].max() - df['Total_Surface'].min() + 1e-6)
+        df['Score_Renewables'] = n_renew.clip(0, 1)
 
+        # --- B. INTERNAL THERMAL SCORE (Sensitivity Logic) ---
+        # Normalize Winter (Reward) and Summer (Penalty)
         n_heat = (df[col_heat] - df[col_heat].min()) / (df[col_heat].max() - df[col_heat].min() + 1e-6)
-        n_over = 1 - (df[col_over] - df[col_over].min()) / (df[col_over].max() - df[col_over].min() + 1e-6)
-        df['Score_Thermal'] = (n_heat * 0.5) + (n_over * 0.5)
+        n_over = (df[col_over] - df[col_over].min()) / (df[col_over].max() - df[col_over].min() + 1e-6)
+        
+        # Internal balance (50/50 split) within Thermal category
+        # Using Penalty Logic: Score = Reward - Penalty
+        df['Score_Thermal'] = (0.5 * n_heat) - (0.5 * n_over)
 
+        # --- C. INTERNAL DAYLIGHT SCORE (Sensitivity Logic) ---
+        # Normalize sDA (Reward) and ASE (Penalty)
         n_sda = (df[col_sDA] - df[col_sDA].min()) / (df[col_sDA].max() - df[col_sDA].min() + 1e-6)
-        n_ase = 1 - (df[col_ASE] - df[col_ASE].min()) / (df[col_ASE].max() - df[col_ASE].min() + 1e-6)
-        df['Score_Daylight'] = (n_sda * 0.5) + (n_ase * 0.5)
+        n_ase = (df[col_ASE] - df[col_ASE].min()) / (df[col_ASE].max() - df[col_ASE].min() + 1e-6)
+        
+        # Internal balance (50/50 split) within Daylight category
+        # Using Penalty Logic: Score = Reward - Penalty
+        df['Score_Daylight'] = (0.5 * n_sda) - (0.5 * n_ase)
 
-        # B. Calculate Final Weighted Score
+        # --- D. FINAL WEIGHTED GLOBAL SCORE ---
+        # Combines the sub-scores based on user-defined importance
         df['Final_Score'] = (df['Score_Renewables'] * w_renew) + \
-                            (df['Score_Thermal'] * current_w_energy) + \
-                            (df['Score_Daylight'] * current_w_daylight)
+                            (df['Score_Thermal'] * global_w_energy) + \
+                            (df['Score_Daylight'] * global_w_daylight)
 
-        # C. BINARY SIGNATURE LOGIC (Your Request)
-        # Create a pattern based on which components are present (1) or absent (0)
-        # If a user 'Excludes' a param, it is already 0 in df_filtered, so the signature handles it.
+        # --- E. BINARY SIGNATURE & DIVERSITY ---
+        # Create a pattern (1 if present, 0 if absent)
+        # If EXCLUDED is chosen, the value is already 0, so the signature is 0.
         df['binary_signature'] = df[params].apply(lambda row: tuple(1 if x != 0 else 0 for x in row), axis=1)
-
-        # Sort by Final Score (Best first)
+        
+        # Sort by best score
         df = df.sort_values(by='Final_Score', ascending=False)
 
-        # D. DROP DUPLICATE STRATEGIES
-        # This ensures we get the best case for 10 DIFFERENT architectural patterns
-        top_df = df.drop_duplicates(subset=['binary_signature'], keep='first').head(10)
+        # Grab the best performer for each UNIQUE architectural strategy
+        unique_strategies = df.drop_duplicates(subset=['binary_signature'], keep='first')
         
-        # Save to session state
-        st.session_state['top_10'] = top_df
+        # Ensure we always return 10 cases (fill with next best if unique patterns < 10)
+        if len(unique_signatures) >= 10:
+            top_df = unique_signatures.head(10)
+        else:
+            needed = 10 - len(unique_signatures)
+            remaining = df[~df.index.isin(unique_signatures.index)].sort_values('Final_Score', ascending=False)
+            top_df = pd.concat([unique_signatures, remaining.head(needed)])
+
+        st.session_state['top_10'] = top_df.sort_values('Final_Score', ascending=False)
         st.session_state['full_calc_df'] = df
-        
-        st.success(f"Displaying 10 unique architectural patterns optimized for your criteria.")
+        st.success(f"Optimized using High-Precision Sensitivity Logic (Diversity Enabled)")
 
 # ==========================================
 # 7. DYNAMIC OUTPUTS (Global ID focus)
