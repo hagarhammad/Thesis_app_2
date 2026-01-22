@@ -158,33 +158,41 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
-    # 8. DIAGNOSTICS & ADJUSTMENTS
     # ==========================================
-    st.divider()
-    st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
-    
-    top_10_means = top_10[params].mean()
-    diag_cols = st.columns(len(params))
-    for i, p in enumerate(params):
-        with diag_cols[i]:
-            st.markdown(f"#### {p.replace('_',' ')}")
-            case_val, t10_avg = case_data[p], top_10_means[p]
-            diff = case_val - t10_avg
-            if abs(diff) < 0.05: st.write("⚖️ **Balanced**")
-            elif diff > 0: st.write("⬆️ **Aggressive**")
-            else: st.write("⬇️ **Conservative**")
+# 8. PERFORMANCE DIAGNOSTICS: {selected_global}
+# ==========================================
+st.divider()
+st.subheader(f"🧐 Performance Diagnostics: {selected_global}")
 
-    # Strategic Fixes
-    st.subheader("🛠️ Strategic Adjustments")
-    fixes = []
-    tol = 0.10
-    if case_data[col_ASE] > (top_10[col_ASE].min() * (1 + tol)):
-        fixes.append("⚠️ **Glare:** High ASE. Increase Louvers or Canopy depth.")
-    if case_data[col_sDA] < (top_10[col_sDA].max() * (1 - tol)):
-        fixes.append("☀️ **Daylight:** Form is dark. Reduce Balcony depth or Louver thickness.")
-    
-    for f in fixes: st.info(f)
-    if not fixes: st.success("✅ Geometry manages conflicts effectively.")
+top_10_means = top_10[params].mean()
+diag_cols = st.columns(len(params))
+
+for i, p in enumerate(params):
+    with diag_cols[i]:
+        st.markdown(f"#### {p.replace('_',' ')}")
+        
+        # --- THE EXCLUSION CHECK ---
+        # If the parameter was "Excluded" in the sidebar, its max value in the 
+        # current calculation pool (full_df) will be 0.
+        if full_df[p].max() == 0 and full_df[p].min() == 0:
+            st.write("⚪ **Excluded**")
+            st.caption("This design feature is currently disabled and not contributing to performance.")
+        # ---------------------------
+        
+        else:
+            case_val = case_data[p]
+            t10_avg = top_10_means[p]
+            diff = case_val - t10_avg
+            
+            if abs(diff) < 0.05:
+                st.write("⚖️ **Balanced**")
+                st.caption("Matches the optimal range of the top performers.")
+            elif diff > 0:
+                st.write("⬆️ **Aggressive**")
+                st.caption("Higher than average. Prioritizes shading over light.")
+            else:
+                st.write("⬇️ **Conservative**")
+                st.caption("Lower than average. Favors maximum light penetration.")
 
     # ==========================================
     # 9. EXECUTIVE SUMMARY
