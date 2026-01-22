@@ -159,7 +159,9 @@ if 'top_10' in st.session_state:
 
     with col_table:
         st.subheader("🏆 Case Schedule")
-        st.dataframe(top_10[[col_global] + top_10[[cases] + params], hide_index=True)
+        
+        display_cols = [col_global, cases] + params
+        st.dataframe(top_10[display_cols], hide_index=True)
         
         selected_case_id = case_data[col_id]
         st.info(f"Viewing: {selected_global} (Typology: {selected_case_id})")
