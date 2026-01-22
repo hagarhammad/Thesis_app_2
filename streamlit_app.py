@@ -159,7 +159,8 @@ if 'top_10' in st.session_state:
         st.info(f"Viewing Typology: {case_data[col_id]}")
 
     # ==========================================
-    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (FIXED UI)
+    # ==========================================
+    # 8. DYNAMIC PERFORMANCE DIAGNOSTICS (ALIGNED COLUMNS)
     # ==========================================
     st.subheader(f"🧐 Strategic Synergy: {selected_global}")
     
@@ -184,51 +185,54 @@ if 'top_10' in st.session_state:
     
     influence = {p: safe_corr(full_df[p], full_df['Final_Score']) for p in params}
     
-    diag_cols = st.columns(len(params))
+    cols = st.columns(len(params))
     
     for i, p in enumerate(params):
-        with diag_cols[i]:
-            st.markdown(f"#### {pretty_names[p]}")
+        with cols[i]:
+            st.markdown(f"### {pretty_names[p]}")
     
-            # 1. Handle Excluded State
+            # Excluded → fixed-height block
             if p in excluded_params:
-                st.write("⚪ **Excluded from design**")
-                # Empty space to match the height of influence/strength rows
-                st.write("") 
-                st.write("")
+                st.write("**Influence:** —")
+                st.write("⚪ **Excluded**")
+                st.write(" ")  # spacer for alignment
+                st.write(" ")  # spacer for alignment
+                continue
+    
+            corr = influence[p]
+            strength = abs(corr)
+            direction = "Positive" if corr > 0 else "Negative"
+    
+            # Influence value (always 1 line)
+            st.write(f"**Influence:** {direction} ({strength:.2f})")
+    
+            # Strength bubble (always 1 line)
+            if strength < 0.15:
+                st.write("🟤 **Minimal Influence**")
+                # No directional advice → add blank lines to align
+                st.write(" ")
+                st.write(" ")
+                continue
+            elif strength < 0.35:
+                st.write("🟡 **Moderate Influence**")
             else:
-                corr = influence[p]
-                strength = abs(corr)
-                direction = "Positive" if corr > 0 else "Negative"
+                st.write("🟢 **Strong Influence**")
     
-                # 2. Influence Value Row
-                st.write(f"**Influence:** {direction} ({strength:.2f})")
+            # Directional advice (always 1 line)
+            current_val = case_data[p] if pd.notna(case_data[p]) else 0
+            avg_val = full_df[p].mean()
     
-                # 3. Strength Bubble Row
-                if strength < 0.15:
-                    st.write("🟤 **Minimal Influence**")
-                elif strength < 0.35:
-                    st.write("🟡 **Moderate Influence**")
+            if corr > 0:
+                if current_val < avg_val:
+                    st.info("⬆ Increase to improve performance.")
                 else:
-                    st.write("🟢 **Strong Influence**")
-    
-                # 4. Directional Guidance Row (The "Gap" Fix)
-                # We calculate this for everyone, but only show the info box if applicable.
-                current_val = case_data[p] if pd.notna(case_data[p]) else 0
-                avg_val = full_df[p].mean()
-    
-                if strength >= 0.15: # Only show guidance for non-minimal influence
-                    if corr > 0 and current_val < avg_val:
-                        st.info("⬆ Increasing this tends to improve performance.")
-                    elif corr < 0 and current_val > avg_val:
-                        st.info("⬇ Decreasing this tends to improve performance.")
-                    else:
-                        # Balanced state placeholder so the column doesn't shrink
-                        st.caption("⚖️ Currently optimized relative to average.")
+                    st.info(" ")
+            else:
+                if current_val > avg_val:
+                    st.info("⬇ Decrease to improve performance.")
                 else:
-                    # Placeholder for minimal influence to keep vertical alignment
-                    st.caption("No significant trend detected.")
-    
+                    st.info(" ")
+        
     # ==========================================
     # 9. STRATEGIC ADJUSTMENTS (FINAL)
     # ==========================================
